@@ -3,13 +3,25 @@ import axios from 'axios';
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
-const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB'; // Adam по умолчанию
+const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB'; // Adam
 
-// === ElevenLabs TTS с подробными логами ===
+// === КЭШ: username (без @) → chat_id (всё в памяти, живёт пока контейнер жив) ===
+const usernameToChatId = new Map(); // "snnikl" → 124825623
+
+// Автоматически сохраняем всех, кто нам пишет (и в ЛС, и в группах)
+bot.use((ctx, next) => {
+    if (ctx.from?.username) {
+        usernameToChatId.set(ctx.from.username.toLowerCase(), ctx.chat.id);
+        console.log(`[CACHE] Запомнил @${ctx.from.username} → chat_id ${ctx.chat.id}`);
+    }
+    return next();
+});
+
+// === ElevenLabs TTS ===
 async function textToSpeech(text) {
     const url = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}/stream`;
 
-    console.log(`[TTS] Запрос на озвучку: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"`);
+    console.log(`[TTS] Озвучиваю: "${text.substring(0, 100)}${text.length > 100 ? '...' : ''}"`);
 
     try {
         const response = await axios({
@@ -17,13 +29,8 @@ async function textToSpeech(text) {
             url,
             data: {
                 text,
-                model_id: 'eleven_flash_v2_5', // именно та, что у тебя работает
-                voice_settings: {
-                    stability: 0.5,      // как у тебя на скрине
-                    similarity_boost: 0.9,
-                    style: 0.0,
-                    use_speaker_boost: true
-                }
+                model_id: 'eleven_flash_v2_5',
+                voice_settings: { stability: 0.5, similarity_boost: 0.9 }
             },
             headers: {
                 'Accept': 'audio/ogg',
@@ -31,103 +38,88 @@ async function textToSpeech(text) {
                 'Content-Type': 'application/json'
             },
             responseType: 'arraybuffer',
-            timeout: 45000 // увеличил — иногда Flash думает подольше
+            timeout: 45000
         });
 
-        console.log(`[TTS] Успешно получено аудио: ${response.data.byteLength} байт`);
+        console.log(`[TTS] Готово, ${response.data.byteLength} байт`);
         return response.data;
-
     } catch (error) {
-        if (error.response) {
-            const status = error.response.status;
-            const data = error.response.data ? Buffer.from(error.response.data).toString('utf-8').slice(0, 500) : 'no body';
-            console.error(`[TTS] ElevenLabs ошибка ${status}: ${data}`);
-
-            // Специальные сообщения для частых ошибок
-            if (status === 401) return { error: 'Неверный API-ключ ElevenLabs' };
-            if (status === 403) return { error: 'Нет доступа к этому голосу (missing_permissions)' };
-            if (status === 429) return { error: 'Лимит ElevenLabs превышен' };
-            if (status === 422) return { error: 'Текст слишком длинный или содержит запрещённые символы' };
-        } else {
-            console.error('[TTS] Ошибка сети или таймаут:', error.message);
-            return { error: 'Не смог связаться с ElevenLabs' };
-        }
-        return { error: 'Неизвестная ошибка ElevenLabs' };
+        console.error('[TTS] Ошибка:', error.response?.status, error.response?.data || error.message);
+        return null;
     }
 }
 
-// === Основная логика бота ===
+// === Основная логика ===
 bot.on('text', async (ctx) => {
-    const userId = ctx.from.id;
-    const fullText = ctx.message.text.trim();
-    const username = ctx.from.username ? `@${ctx.from.username}` : ctx.from.first_name;
+    const text = ctx.message.text.trim();
+    const fromUser = ctx.from;
+    const username = fromUser.username ? `@${fromUser.username}` : fromUser.first_name;
 
-    console.log(`[MSG] ${username} (${userId}): ${fullText.substring(0, 150)}...`);
+    console.log(`[MSG] ${username} (${fromUser.id}): ${text}`);
 
-    // Если сообщение начинается с @ или содержит упоминание в начале — пытаемся переслать
-    const mentionMatch = fullText.match(/^@([A-Za-z0-9_]{5,})[\s\n]+(.+)/i);
-    const isForwardMode = mentionMatch !== null;
+    // Проверяем, есть ли @username в начале
+    const forwardMatch = text.match(/^@([A-Za-z0-9_]{5,32})\s+(.+)/i);
+    const isForward = forwardMatch !== null;
 
-    let targetChatId = null;
-    let textToSpeak = fullText;
+    let targetUsernameLower = null;
+    let textToSpeak = text;
 
-    if (isForwardMode) {
-        const targetUsername = mentionMatch[1].toLowerCase(); // без @
-        textToSpeak = mentionMatch[2].trim();
+    if (isForward) {
+        targetUsernameLower = forwardMatch[1].toLowerCase();
+        textToSpeak = forwardMatch[2];
 
         if (textToSpeak.length === 0) {
-            return ctx.reply('После @username нужно написать текст для озвучки');
-        }
-
-        // Попробуем найти chat_id по username (кешируем на 24ч)
-        targetChatId = await getChatIdByUsername(targetUsername, ctx);
-        if (!targetChatId) {
-            return ctx.reply(`Не могу найти или написать пользователю @${targetUsername}\n\nПусть он напишет мне хоть раз или добавит в группу`);
+            return ctx.reply('После @username напиши текст');
         }
     }
 
     if (textToSpeak.length > 2500) {
-        return ctx.reply('Слишком длинный текст (макс ~2500 символов)');
+        return ctx.reply('Текст слишком длинный (макс ~2500 символов)');
     }
 
-    await ctx.sendChatAction(isForwardMode ? 'record_voice' : 'record_voice');
+    await ctx.sendChatAction('record_voice');
 
     const audioBuffer = await textToSpeech(textToSpeak);
-    if (audioBuffer.error) {
-        return ctx.reply(`Ошибка озвучки: ${audioBuffer.error}`);
+    if (!audioBuffer) {
+        return ctx.reply('Не смог озвучить 😔 Попробуй позже');
     }
 
     try {
-        if (isForwardMode && targetChatId) {
-            // Отправляем в целевой чат от имени бота, но с подписью от кого
-            await ctx.telegram.sendVoice(targetChatId,
-                { source: audioBuffer, filename: 'voice.ogg' },
-                { caption: `Голосовое от ${ctx.from.first_name} (${username})\n\n${textToSpeak.substring(0, 200)}${textToSpeak.length > 200 ? '...' : ''}` }
-            );
+        if (isForward) {
+            const targetChatId = usernameToChatId.get(targetUsernameLower);
 
-            // Подтверждение отправителю
-            await ctx.reply(`Голосовое отправлено @${mentionMatch[1]} ✅\n\n"${textToSpeak.substring(0, 100)}..."`);
-            console.log(`[FORWARD] От ${userId} → @${mentionMatch[1]} (${targetChatId})`);
+            if (!targetChatId) {
+                return ctx.reply(`Не знаю, куда писать @${forwardMatch[1]}\nПусть сначала напишет мне хоть раз`);
+            }
+
+            await ctx.telegram.sendVoice(targetChatId, {
+                source: audioBuffer,
+                filename: 'voice.ogg'
+            });
+
+            await ctx.reply(`Голосовое отправлено @${forwardMatch[1]} ✅`);
+            console.log(`[FORWARD] ${username} → @${forwardMatch[1]} (${targetChatId})`);
         } else {
-            // Обычная озвучка себе
-            await ctx.sendVoice({ source: audioBuffer, filename: 'voice.ogg' });
+            // Обычная отправка себе — чистое голосовое без подписи
+            await ctx.sendVoice({
+                source: audioBuffer,
+                filename: 'voice.ogg'
+            });
         }
-    } catch (sendErr) {
-        console.error('[SEND ERROR]', sendErr.message);
-        ctx.reply('Не смог отправить голосовое 😔\nВозможно, меня нет в том чате или заблокировали');
+    } catch (sendError) {
+        console.error('[SEND] Ошибка отправки:', sendError.message);
+        ctx.reply('Не смог отправить голосовое (возможно, меня заблокировали)');
     }
 });
 
-// На всё остальное (голосовухи, фото и т.д.)
+// На всё остальное
 bot.on('message', (ctx) => {
-    console.log(`[MSG] Неподдерживаемый тип сообщения от ${ctx.from.id}: ${ctx.message?.caption || ctx.message?.voice ? 'voice/file' : 'другое'}`);
-    ctx.reply('Пиши текст — я озвучу его голосом Adam (ElevenLabs Flash v2.5) ✨');
+    ctx.reply('Привет! Пиши текст — я озвучу.\nИли @username текст — отправлю ему голосовуху');
 });
 
-// ====================== Next.js API Route ======================
+// === Webhook API ===
 export async function GET() {
-    console.log('[HEALTH] GET /api/bot — бот жив');
-    return new Response('ExomindV Voice Bot — alive & ready 🤖', { status: 200 });
+    return new Response('Exomind Voice Proxy — OK', { status: 200 });
 }
 
 export async function POST(request) {
@@ -144,5 +136,5 @@ export async function POST(request) {
 // Dev polling
 if (process.env.NODE_ENV !== 'production') {
     bot.launch();
-    console.log('Bot running in polling mode (dev)');
+    console.log('Bot запущен в polling-режиме (dev)');
 }
