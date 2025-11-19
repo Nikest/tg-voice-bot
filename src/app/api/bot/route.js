@@ -96,12 +96,6 @@ bot.on('text', async (ctx) => {
 });
 
 
-bot.on('message', (ctx) => {
-    console.log(`[MSG] Неподдерживаемый тип сообщения от ${ctx.from.id}: ${ctx.message?.caption || ctx.message?.voice ? 'voice/file' : 'другое'}`);
-    ctx.reply('Пиши текст — я озвучу его голосом');
-});
-
-
 bot.on('voice', async (ctx) => {
     console.log(`[VOICE] Голосовое от ${ctx.from.id}`);
     await ctx.sendChatAction('record_voice');
@@ -124,6 +118,11 @@ bot.on('voice', async (ctx) => {
         console.error('[VOICE] Fatal error:', err);
         ctx.reply('Ошибка обработки голосового');
     }
+});
+
+bot.on('message', (ctx) => {
+    console.log(`[MSG] Неподдерживаемый тип сообщения от ${ctx.from.id}: ${ctx.message?.caption || ctx.message?.voice ? 'voice/file' : 'другое'}`);
+    ctx.reply('Пиши текст — я озвучу его голосом');
 });
 
 
