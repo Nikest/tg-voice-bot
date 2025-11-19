@@ -59,35 +59,62 @@ async function textToSpeech(text) {
 // === Основная логика бота ===
 bot.on('text', async (ctx) => {
     const userId = ctx.from.id;
-    const text = ctx.message.text.trim();
+    const fullText = ctx.message.text.trim();
+    const username = ctx.from.username ? `@${ctx.from.username}` : ctx.from.first_name;
 
-    console.log(`[MSG] Пользователь ${userId} (${ctx.from.first_name}) написал: "${text.substring(0, 150)}${text.length > 150 ? '...' : ''}"`);
+    console.log(`[MSG] ${username} (${userId}): ${fullText.substring(0, 150)}...`);
 
-    if (!text) return;
+    // Если сообщение начинается с @ или содержит упоминание в начале — пытаемся переслать
+    const mentionMatch = fullText.match(/^@([A-Za-z0-9_]{5,})[\s\n]+(.+)/i);
+    const isForwardMode = mentionMatch !== null;
 
-    if (text.length > 2500) {
-        return ctx.reply('Текст слишком длинный, максимум ~2500 символов');
+    let targetChatId = null;
+    let textToSpeak = fullText;
+
+    if (isForwardMode) {
+        const targetUsername = mentionMatch[1].toLowerCase(); // без @
+        textToSpeak = mentionMatch[2].trim();
+
+        if (textToSpeak.length === 0) {
+            return ctx.reply('После @username нужно написать текст для озвучки');
+        }
+
+        // Попробуем найти chat_id по username (кешируем на 24ч)
+        targetChatId = await getChatIdByUsername(targetUsername, ctx);
+        if (!targetChatId) {
+            return ctx.reply(`Не могу найти или написать пользователю @${targetUsername}\n\nПусть он напишет мне хоть раз или добавит в группу`);
+        }
     }
 
-    await ctx.sendChatAction('record_voice');
+    if (textToSpeak.length > 2500) {
+        return ctx.reply('Слишком длинный текст (макс ~2500 символов)');
+    }
 
-    const result = await textToSpeech(text);
+    await ctx.sendChatAction(isForwardMode ? 'record_voice' : 'record_voice');
 
-    // Если TTS вернул ошибку
-    if (result.error) {
-        console.error(`[BOT] Не удалось озвучить для ${userId}: ${result.error}`);
-        return ctx.reply(`Не смог озвучить 😔\n${result.error}\nПопробуй позже или короче текст.`);
+    const audioBuffer = await textToSpeech(textToSpeak);
+    if (audioBuffer.error) {
+        return ctx.reply(`Ошибка озвучки: ${audioBuffer.error}`);
     }
 
     try {
-        await ctx.sendVoice(
-            { source: result, filename: 'voice.ogg' },
-            { caption: text.length <= 60 ? text : undefined }
-        );
-        console.log(`[BOT] Голосовуха успешно отправлена пользователю ${userId}`);
-    } catch (sendError) {
-        console.error('[BOT] Ошибка отправки voice в Telegram:', sendError.message);
-        ctx.reply('Озвучил, но не смог отправить файл 😱');
+        if (isForwardMode && targetChatId) {
+            // Отправляем в целевой чат от имени бота, но с подписью от кого
+            await ctx.telegram.sendVoice(targetChatId,
+                { source: audioBuffer, filename: 'voice.ogg' },
+                { caption: `Голосовое от ${ctx.from.first_name} (${username})\n\n${textToSpeak.substring(0, 200)}${textToSpeak.length > 200 ? '...' : ''}` }
+            );
+
+            // Подтверждение отправителю
+            await ctx.reply(`Голосовое отправлено @${mentionMatch[1]} ✅\n\n"${textToSpeak.substring(0, 100)}..."`);
+            console.log(`[FORWARD] От ${userId} → @${mentionMatch[1]} (${targetChatId})`);
+        } else {
+            // Обычная озвучка себе
+            await ctx.sendVoice({ source: audioBuffer, filename: 'voice.ogg' });
+        }
+    } catch (sendErr) {
+        console.error('[SEND ERROR]', sendErr.message);
+        ctx.reply('Не смог отправить голосовое 😔\nВозможно, меня нет в том чате или заблокировали');
     }
 });
 
