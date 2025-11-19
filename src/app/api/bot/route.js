@@ -53,33 +53,43 @@ async function textToSpeech(text) {
     }
 }
 
-async function speechToText(fileBuffer) {
-    const url = 'https://api.elevenlabs.io/v1/speech-to-text';
+async function speechToText(audioBuffer) {
+    console.log(`[STT] Распознаём аудио ${audioBuffer.byteLength} байт`);
 
-    console.log(`[STT] Отправляем аудио на распознавание (${fileBuffer.byteLength} байт)`);
+    const formData = new FormData();
+    formData.append('file', Buffer.from(audioBuffer), {
+        filename: 'voice.ogg',
+        contentType: 'audio/ogg'
+    });
 
     try {
-        const response = await axios({
-            method: 'POST',
-            url,
-            data: fileBuffer,
-            headers: {
-                'xi-api-key': ELEVENLABS_API_KEY,
-                'Content-Type': 'audio/ogg'
-            },
-            timeout: 60000
-        });
+        const res = await axios.post(
+            'https://api.elevenlabs.io/v1/speech-to-text',
+            formData,
+            {
+                headers: {
+                    'xi-api-key': ELEVENLABS_API_KEY,
+                    ...formData.getHeaders()
+                },
+                timeout: 60000
+            }
+        );
 
-        const text = response.data.text?.trim();
-        console.log(`[STT] Распознанный текст: "${text}"`);
-
-        if (!text || text.length < 1) {
-            return { error: 'Не смог разобрать речь' };
+        const text = res.data.text?.trim();
+        if (!text || text.length === 0) {
+            console.log('[STT] Пустой результат');
+            return { error: 'Не смог разобрать речь — тишина или шум' };
         }
+
+        console.log(`[STT] Распознанный текст: "${text}"`);
         return { text };
 
-    } catch (error) {
-        console.error('[STT] Ошибка ElevenLabs STT:', error.response?.data || error.message);
+    } catch (err) {
+        if (err.response) {
+            console.error('[STT] ElevenLabs вернул ошибку:', err.response.status, err.response.data);
+        } else {
+            console.error('[STT] Сетевая ошибка:', err.message);
+        }
         return { error: 'Ошибка распознавания речи' };
     }
 }
