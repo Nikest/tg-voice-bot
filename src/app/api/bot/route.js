@@ -1,5 +1,6 @@
 import { Telegraf } from 'telegraf';
 import axios from 'axios';
+import FormData from 'form-data';
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
