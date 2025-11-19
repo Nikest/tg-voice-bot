@@ -58,6 +58,7 @@ async function speechToText(audioBuffer) {
     console.log(`[STT] Распознаём аудио ${audioBuffer.byteLength} байт`);
 
     const formData = new FormData();
+    formData.append('model_id', 'scribe_v1');
     formData.append('file', Buffer.from(audioBuffer), {
         filename: 'voice.ogg',
         contentType: 'audio/ogg'
