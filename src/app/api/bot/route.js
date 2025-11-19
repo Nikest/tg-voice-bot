@@ -123,8 +123,7 @@ bot.on('voice', async (ctx) => {
         if (tts.error) return ctx.reply(tts.error);
 
         await ctx.sendVoice(
-            { source: tts, filename: 'reply.ogg' },
-            { caption: `Ты сказал:\n"${stt.text}"` }
+            { source: tts, filename: 'reply.ogg' }
         );
     } catch (err) {
         console.error('[VOICE] Fatal error:', err);
