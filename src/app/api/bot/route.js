@@ -88,10 +88,6 @@ bot.on('text', async (ctx) => {
         if (isForward) {
             const targetChatId = usernameToChatId.get(targetUsernameLower);
 
-            if (!targetChatId) {
-                return ctx.reply(`Не знаю, куда писать @${forwardMatch[1]}\nПусть сначала напишет мне хоть раз`);
-            }
-
             await ctx.telegram.sendVoice(targetChatId, {
                 source: audioBuffer,
                 filename: 'voice.ogg'
