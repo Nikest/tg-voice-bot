@@ -122,9 +122,46 @@ async function speechToText(audioBuffer) {
     }
 }
 
+bot.command('showallvoices', async (ctx) => {
+    try {
+        const voices = await getAllVoices();
+
+        if (!voices || voices.length === 0) {
+            return ctx.reply('Нет сохранённых примеров голосов.');
+        }
+
+        await ctx.reply(`Отправляю примеры голосов...`);
+
+        for (const v of voices) {
+            if (!v.exampleFileName) {
+                continue;
+            }
+
+            const filePath = path.join(process.cwd(), 'public', 'voices', v.exampleFileName);
+
+            if (!fs.existsSync(filePath)) {
+                console.warn(`[VOICES] Файл не найден: ${filePath}`);
+                await ctx.reply(`Файл для голоса "${v.voiceName}" не найден.`);
+                continue;
+            }
+
+            await ctx.sendChatAction('upload_voice');
+
+            await ctx.sendVoice(
+                { source: fs.createReadStream(filePath) },
+                { caption: v.voiceName }
+            );
+        }
+    } catch (err) {
+        console.error('[CMD /showallvoices] Error:', err);
+        ctx.reply('Ошибка при получении списка голосов');
+    }
+});
+
 bot.on('text', async (ctx) => {
     const text = ctx.message.text.trim();
     if (!text) return;
+    if (text.startsWith('/')) return;
 
     const telegramUserId = ctx.from.id;
     const user = await findOrCreateUser(telegramUserId);
@@ -165,41 +202,6 @@ bot.on('voice', async (ctx) => {
     }
 });
 
-bot.command('showallvoices', async (ctx) => {
-    try {
-        const voices = await getAllVoices();
-
-        if (!voices || voices.length === 0) {
-            return ctx.reply('Нет сохранённых примеров голосов.');
-        }
-
-        await ctx.reply(`Отправляю примеры голосов...`);
-
-        for (const v of voices) {
-            if (!v.exampleFileName) {
-                continue;
-            }
-
-            const filePath = path.join(process.cwd(), 'public', 'voices', v.exampleFileName);
-
-            if (!fs.existsSync(filePath)) {
-                console.warn(`[VOICES] Файл не найден: ${filePath}`);
-                await ctx.reply(`Файл для голоса "${v.voiceName}" не найден.`);
-                continue;
-            }
-
-            await ctx.sendChatAction('upload_voice');
-
-            await ctx.sendVoice(
-                { source: fs.createReadStream(filePath) },
-                { caption: v.voiceName }
-            );
-        }
-    } catch (err) {
-        console.error('[CMD /showallvoices] Error:', err);
-        ctx.reply('Ошибка при получении списка голосов');
-    }
-});
 
 bot.on('message', (ctx) => {
     console.log(`[MSG] Неподдерживаемый тип сообщения от ${ctx.from.id}: ${ctx.message?.caption || ctx.message?.voice ? 'voice/file' : 'другое'}`);
