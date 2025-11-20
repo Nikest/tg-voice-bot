@@ -238,6 +238,7 @@ bot.on('voice', async (ctx) => {
         const audioRes = await axios.get(fileLink.href, { responseType: 'arraybuffer' });
 
         const stt = await speechToText(audioRes.data);
+        ctx.reply(stt.text);
         if (stt.error) return ctx.reply(stt.error);
 
         const tts = await textToSpeech(stt.text, voiceId);
