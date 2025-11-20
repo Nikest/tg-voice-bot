@@ -6,7 +6,7 @@ import path from 'path';
 import dbConnect from '@/lib/mongoose';
 import VoiceSettings from '@/models/VoiceSettings';
 
-import { findUser, createUser } from '../../../lib/userService';
+import { findUser, createUser, updateVoice } from '../../../lib/userService';
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -33,6 +33,14 @@ async function getAllVoices() {
     return VoiceSettings.find({
         exampleFileName: { $ne: '' },
     }).lean();
+}
+
+async function findVoiceByName(name) {
+    await dbConnect();
+
+    const regex = new RegExp(`^${name.trim()}$`, 'i');
+
+    return VoiceSettings.findOne({ voiceName: regex }).lean();
 }
 
 async function textToSpeech(text, voiceId) {
@@ -159,6 +167,45 @@ bot.command('showallvoices', async (ctx) => {
     } catch (err) {
         console.error('[CMD /showallvoices] Error:', err);
         ctx.reply('Ошибка при получении списка голосов');
+    }
+});
+
+bot.command('changevoice', async (ctx) => {
+    const telegramUserId = ctx.from.id;
+    const fullText = ctx.message.text || '';
+
+    const parts = fullText.split(' ');
+    const args = parts.slice(1).join(' ').trim();
+
+    if (!args) {
+        return ctx.reply('Использование: /changevoice ИмяГолоса\nНапример: /changevoice Анжелика');
+    }
+
+    const requestedName = args;
+
+    try {
+        const voice = await findVoiceByName(requestedName);
+
+        if (!voice) {
+            const allVoices = await VoiceSettings.find().lean();
+            if (!allVoices.length) {
+                return ctx.reply(`Голос "${requestedName}" не найден в базе.`);
+            }
+
+            const list = allVoices.map(v => `• ${v.voiceName}`).join('\n');
+            return ctx.reply(
+                `Голос "${requestedName}" не найден.\nДоступные голоса:\n${list}`
+            );
+        }
+
+        await findOrCreateUser(telegramUserId);
+
+        await updateVoice(String(telegramUserId), voice.voiceId);
+
+        return ctx.reply(`Голос изменён на "${voice.voiceName}".`);
+    } catch (err) {
+        console.error('[CMD /changevoice] Error:', err);
+        return ctx.reply('Ошибка при смене голоса.');
     }
 });
 
