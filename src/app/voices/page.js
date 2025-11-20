@@ -53,6 +53,7 @@ export default async function VoicesPage() {
                                 Voice ID
                             </label>
                             <input
+                                name="voiceId"
                                 type="text"
                                 placeholder="ElevenLabs Voice ID"
                                 className="mt-1 w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 py-1 text-sm text-zinc-900 dark:text-zinc-50"
@@ -64,6 +65,7 @@ export default async function VoicesPage() {
                                 Name
                             </label>
                             <input
+                                name="voiceName"
                                 type="text"
                                 placeholder="Voice Name"
                                 className="mt-1 w-full rounded-md border border-zinc-300 dark:border-zinc-700 bg-zinc-50 dark:bg-zinc-800 px-2 py-1 text-sm text-zinc-900 dark:text-zinc-50"
@@ -78,6 +80,7 @@ export default async function VoicesPage() {
                                 Stability
                             </label>
                             <input
+                                name="stability"
                                 type="number"
                                 step="0.01"
                                 defaultValue={0.5}
@@ -90,6 +93,7 @@ export default async function VoicesPage() {
                                 Similarity
                             </label>
                             <input
+                                name="similarityBoost"
                                 type="number"
                                 step="0.01"
                                 defaultValue={0.9}
@@ -105,6 +109,7 @@ export default async function VoicesPage() {
                                 Style
                             </label>
                             <input
+                                name="style"
                                 type="number"
                                 step="0.01"
                                 defaultValue={0.0}
@@ -119,6 +124,7 @@ export default async function VoicesPage() {
                                 </div>
                                 <div className="mt-2 flex items-center gap-2">
                                     <input
+                                        name="useSpeakerBoost"
                                         type="checkbox"
                                         defaultChecked
                                         className="h-4 w-4"
@@ -135,6 +141,7 @@ export default async function VoicesPage() {
                                 Voice Example
                             </label>
                             <input
+                                name="voiceExample"
                                 type="file"
                                 accept="audio/*"
                                 className="mt-1 w-full text-sm text-zinc-900 dark:text-zinc-50
