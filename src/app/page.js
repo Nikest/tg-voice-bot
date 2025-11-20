@@ -1,10 +1,17 @@
+export const dynamic = 'force-dynamic';
+
 import dbConnect from "@/lib/mongoose";
 import User from "@/models/User";
 
 export default async function Home() {
-  await dbConnect();
+  let users = [];
 
-  const users = await User.find().lean();
+  try {
+    await dbConnect();
+    users = await User.find().lean();
+  } catch (err) {
+    console.error('[HOME] Connection error:', err);
+  }
 
   return (
       <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black p-6">
