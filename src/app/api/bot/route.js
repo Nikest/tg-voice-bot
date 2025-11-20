@@ -23,6 +23,14 @@ async function findOrCreateUser(telegramUserId) {
     return user;
 }
 
+async function getAllVoices() {
+    await dbConnect();
+
+    return VoiceSettings.find({
+        exampleFileName: { $ne: '' },
+    }).lean();
+}
+
 async function textToSpeech(text, voiceId) {
     const finalVoiceId = voiceId || VOICE_ID;
     const url = `https://api.elevenlabs.io/v1/text-to-speech/${finalVoiceId}/stream`;
@@ -131,7 +139,7 @@ bot.on('text', async (ctx) => {
 
 
 bot.on('voice', async (ctx) => {
-    console.log(`[VOICE] Голосовое от ${ctx.from.id}`);
+    const telegramUserId = ctx.from.id;
     await ctx.sendChatAction('record_voice');
 
     const user = await findOrCreateUser(telegramUserId);
@@ -154,6 +162,42 @@ bot.on('voice', async (ctx) => {
     } catch (err) {
         console.error('[VOICE] Fatal error:', err);
         ctx.reply('Ошибка обработки голосового');
+    }
+});
+
+bot.command('showallvoices', async (ctx) => {
+    try {
+        const voices = await getAllVoices();
+
+        if (!voices || voices.length === 0) {
+            return ctx.reply('Нет сохранённых примеров голосов.');
+        }
+
+        await ctx.reply(`Отправляю примеры голосов...`);
+
+        for (const v of voices) {
+            if (!v.exampleFileName) {
+                continue;
+            }
+
+            const filePath = path.join(process.cwd(), 'public', 'voices', v.exampleFileName);
+
+            if (!fs.existsSync(filePath)) {
+                console.warn(`[VOICES] Файл не найден: ${filePath}`);
+                await ctx.reply(`Файл для голоса "${v.voiceName}" не найден.`);
+                continue;
+            }
+
+            await ctx.sendChatAction('upload_voice');
+
+            await ctx.sendVoice(
+                { source: fs.createReadStream(filePath) },
+                { caption: v.voiceName }
+            );
+        }
+    } catch (err) {
+        console.error('[CMD /showallvoices] Error:', err);
+        ctx.reply('Ошибка при получении списка голосов');
     }
 });
 
