@@ -1,7 +1,8 @@
 import { Telegraf } from 'telegraf';
 import axios from 'axios';
 import FormData from 'form-data';
-
+import fs from 'fs';
+import path from 'path';
 import dbConnect from '@/lib/mongoose';
 import VoiceSettings from '@/models/VoiceSettings';
 
