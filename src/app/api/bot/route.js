@@ -2,6 +2,9 @@ import { Telegraf } from 'telegraf';
 import axios from 'axios';
 import FormData from 'form-data';
 
+import dbConnect from '@/lib/mongoose';
+import VoiceSettings from '@/models/VoiceSettings';
+
 import { findUser, createUser } from '../../../lib/userService';
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
