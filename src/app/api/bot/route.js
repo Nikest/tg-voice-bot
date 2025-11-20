@@ -53,13 +53,13 @@ async function textToSpeech(text, voiceId) {
             url,
             data: {
                 text,
-                model_id: 'eleven_flash_v2_5',
+                model_id: 'eleven_v3',
                 voice_settings: {
                     stability: 0.5,
                     similarity_boost: 0.9,
                     style: 0.0,
-                    use_speaker_boost: true
-                }
+                    use_speaker_boost: true,
+                },
             },
             headers: {
                 'Accept': 'audio/ogg',
