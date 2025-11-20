@@ -2,12 +2,30 @@ import { Telegraf } from 'telegraf';
 import axios from 'axios';
 import FormData from 'form-data';
 
+import { findUser, createUser } from '../../../lib/userService';
+
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB';
 
-async function textToSpeech(text) {
-    const url = `https://api.elevenlabs.io/v1/text-to-speech/${VOICE_ID}/stream`;
+async function findOrCreateUser(telegramUserId) {
+    const userId = String(telegramUserId);
+
+    let user = await findUser(userId);
+
+    if (!user) {
+        user = await createUser({
+            user: userId,
+            selectedVoice: VOICE_ID,
+        });
+    }
+
+    return user;
+}
+
+async function textToSpeech(text, voiceId) {
+    const finalVoiceId = voiceId || VOICE_ID;
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${finalVoiceId}/stream`;
 
     try {
         const response = await axios({
@@ -100,8 +118,12 @@ bot.on('text', async (ctx) => {
     const text = ctx.message.text.trim();
     if (!text) return;
 
+    const telegramUserId = ctx.from.id;
+    const user = await findOrCreateUser(telegramUserId);
+    const voiceId = user?.selectedVoice || VOICE_ID;
+
     await ctx.sendChatAction('record_voice');
-    const audio = await textToSpeech(text);
+    const audio = await textToSpeech(text, voiceId);
     if (audio.error) return ctx.reply(audio.error);
 
     await ctx.sendVoice({ source: audio, filename: 'voice.ogg' });
@@ -112,6 +134,9 @@ bot.on('voice', async (ctx) => {
     console.log(`[VOICE] Голосовое от ${ctx.from.id}`);
     await ctx.sendChatAction('record_voice');
 
+    const user = await findOrCreateUser(telegramUserId);
+    const voiceId = user?.selectedVoice || VOICE_ID;
+
     try {
         const fileLink = await ctx.telegram.getFileLink(ctx.message.voice.file_id);
         const audioRes = await axios.get(fileLink.href, { responseType: 'arraybuffer' });
@@ -119,7 +144,8 @@ bot.on('voice', async (ctx) => {
         const stt = await speechToText(audioRes.data);
         if (stt.error) return ctx.reply(stt.error);
 
-        const tts = await textToSpeech(stt.text);
+        const tts = await textToSpeech(stt.text, voiceId);
+
         if (tts.error) return ctx.reply(tts.error);
 
         await ctx.sendVoice(
