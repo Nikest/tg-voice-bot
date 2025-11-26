@@ -43,13 +43,9 @@ export async function convertToTelegramVoice(inputBuffer) {
         });
 
         ffmpeg(inputStream)
-            .inputFormat('ogg')
-            // === ВАЖНО: ЛОГИРОВАНИЕ ОШИБОК САМОГО FFMPEG ===
             .on('stderr', (stderrLine) => {
-                // Это покажет реальную причину падения в консоли докера
                 console.log('[FFmpeg Log]:', stderrLine);
             })
-            // ===============================================
             .audioFilters(EQ_FILTER_CHAIN)
             .audioCodec('libopus')
             .format('ogg')
