@@ -1,8 +1,6 @@
 import ffmpeg from 'fluent-ffmpeg';
-import { path as ffmpegPath } from '@ffmpeg-installer/ffmpeg';
 import { PassThrough } from 'stream';
 
-ffmpeg.setFfmpegPath(ffmpegPath);
 
 const EQ_FILTER_CHAIN = [
     'lowshelf=f=90:g=12.7',
