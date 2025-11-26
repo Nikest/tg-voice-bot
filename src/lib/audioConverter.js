@@ -12,9 +12,16 @@ ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
 // 3. highshelf: Верха (-8.2dB на 8kHz)
 // 4. alimiter: Лимитер, чтобы не было хрипа (клиппинга) после усиления баса
 const EQ_FILTER_CHAIN = [
-    'lowshelf=f=90:g=12.7',
-    'equalizer=f=1500:width_type=o:width=1:g=5.9',
-    'highshelf=f=8000:g=-8.2',
+    // 1. Низкие: 90Hz, усиление +3.5dB (как на картинке)
+    'lowshelf=f=90:g=3.5',
+
+    // 2. Средние: 1500Hz, усиление +3.2dB
+    'equalizer=f=1500:width_type=o:width=1:g=3.2',
+
+    // 3. Высокие: 8000Hz, ослабление -3.0dB
+    'highshelf=f=8000:g=-3.0',
+
+    // 4. Лимитер оставляем для безопасности (чтобы не было хрипа на громких фразах)
     'alimiter=level_in=1:level_out=0.95:limit=0.95:attack=5:release=50'
 ].join(',');
 

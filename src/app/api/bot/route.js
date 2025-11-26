@@ -10,12 +10,7 @@ import { findUser, createUser, updateVoice } from '@/lib/userService';
 import { enhanceTextWithGPT } from '@/lib/gptService';
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
-bot.catch((err, ctx) => {
-    console.error(`---------------------------------`);
-    console.error(`🚨 ОШИБКА в обработчике для ${ctx.updateType}:`);
-    console.error(err);
-    console.error(`---------------------------------`);
-});
+
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB';
 
@@ -262,7 +257,7 @@ bot.on('voice', async (ctx) => {
         const audioRes = await axios.get(fileLink.href, { responseType: 'arraybuffer' });
 
         const stt = await speechToText(audioRes.data);
-        await ctx.reply(stt.text);
+
         if (stt.error) return ctx.reply(stt.error);
 
         await ctx.sendChatAction('record_voice');
