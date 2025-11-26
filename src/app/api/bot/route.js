@@ -5,8 +5,9 @@ import fs from 'fs';
 import path from 'path';
 import dbConnect from '@/lib/mongoose';
 import VoiceSettings from '@/models/VoiceSettings';
-
-import { findUser, createUser, updateVoice } from '../../../lib/userService';
+import { convertToTelegramVoice } from '@/lib/audioConverter';
+import { findUser, createUser, updateVoice } from '@/lib/userService';
+import { enhanceTextWithGPT } from '@/lib/gptService';
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
@@ -134,6 +135,24 @@ async function speechToText(audioBuffer) {
     }
 }
 
+async function convertAndSend(text, voiceId, ctx) {
+    const rawAudio = await textToSpeech(text, voiceId);
+    if (rawAudio.error) return ctx.reply(rawAudio.error);
+
+    try {
+        const perfectVoiceBuffer = await convertToTelegramVoice(rawAudio);
+
+        await ctx.sendVoice({
+            source: perfectVoiceBuffer,
+            filename: 'voice.ogg'
+        });
+
+    } catch (err) {
+        console.error('Ошибка конвертации:', err);
+        await ctx.sendVoice({ source: rawAudio, filename: 'voice.ogg' });
+    }
+}
+
 bot.command('showallvoices', async (ctx) => {
     try {
         const voices = await getAllVoices();
@@ -219,16 +238,15 @@ bot.on('text', async (ctx) => {
     const voiceId = user?.selectedVoice || VOICE_ID;
 
     await ctx.sendChatAction('record_voice');
-    const audio = await textToSpeech(text, voiceId);
-    if (audio.error) return ctx.reply(audio.error);
 
-    await ctx.sendVoice({ source: audio, filename: 'voice.ogg' });
+    const processedText = await enhanceTextWithGPT(text);
+
+    await convertAndSend(processedText, voiceId, ctx);
 });
 
 
 bot.on('voice', async (ctx) => {
     const telegramUserId = ctx.from.id;
-    await ctx.sendChatAction('record_voice');
 
     const user = await findOrCreateUser(telegramUserId);
     const voiceId = user?.selectedVoice || VOICE_ID;
@@ -238,16 +256,13 @@ bot.on('voice', async (ctx) => {
         const audioRes = await axios.get(fileLink.href, { responseType: 'arraybuffer' });
 
         const stt = await speechToText(audioRes.data);
-        ctx.reply(stt.text);
+        await ctx.reply(stt.text);
         if (stt.error) return ctx.reply(stt.error);
 
-        const tts = await textToSpeech(stt.text, voiceId);
+        await ctx.sendChatAction('record_voice');
 
-        if (tts.error) return ctx.reply(tts.error);
+        await convertAndSend(stt.text, voiceId, ctx);
 
-        await ctx.sendVoice(
-            { source: tts, filename: 'reply.ogg' }
-        );
     } catch (err) {
         console.error('[VOICE] Fatal error:', err);
         ctx.reply('Ошибка обработки голосового');
