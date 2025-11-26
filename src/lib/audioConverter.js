@@ -43,6 +43,7 @@ export async function convertToTelegramVoice(inputBuffer) {
         });
 
         ffmpeg(inputStream)
+            .inputFormat('mp3')
             .on('stderr', (stderrLine) => {
                 console.log('[FFmpeg Log]:', stderrLine);
             })
