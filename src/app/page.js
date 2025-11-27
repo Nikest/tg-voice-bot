@@ -25,6 +25,7 @@ export default async function Home() {
             <tr className="bg-zinc-200 dark:bg-zinc-800">
               <th className="border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-left">User</th>
               <th className="border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-left">Voice</th>
+              <th className="border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-left">Noise</th>
               <th className="border border-zinc-300 dark:border-zinc-700 px-3 py-2 text-left">Credits</th>
             </tr>
             </thead>
@@ -47,6 +48,9 @@ export default async function Home() {
                       </td>
                       <td className="border border-zinc-300 dark:border-zinc-700 px-3 py-2">
                         {u.selectedVoice}
+                      </td>
+                      <td className="border border-zinc-300 dark:border-zinc-700 px-3 py-2">
+                        {u.selectedNoiseTag || 'N/A'}
                       </td>
                       <td className="border border-zinc-300 dark:border-zinc-700 px-3 py-2">
                         {u.credits}
