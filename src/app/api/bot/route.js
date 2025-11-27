@@ -359,13 +359,12 @@ bot.on('text', async (ctx) => {
 
     const telegramUserId = ctx.from.id;
     const user = await findOrCreateUser(telegramUserId);
-    const voiceId = user?.selectedVoice || VOICE_ID;
 
     await ctx.sendChatAction('record_voice');
 
     const processedText = await enhanceTextWithGPT(text);
 
-    await convertAndSend(processedText, voiceId, ctx);
+    await convertAndSend(processedText, user, ctx);
 });
 
 
@@ -373,7 +372,6 @@ bot.on('voice', async (ctx) => {
     const telegramUserId = ctx.from.id;
 
     const user = await findOrCreateUser(telegramUserId);
-    const voiceId = user?.selectedVoice || VOICE_ID;
 
     try {
         const fileLink = await ctx.telegram.getFileLink(ctx.message.voice.file_id);
@@ -385,7 +383,7 @@ bot.on('voice', async (ctx) => {
 
         await ctx.sendChatAction('record_voice');
 
-        await convertAndSend(stt.text, voiceId, ctx);
+        await convertAndSend(stt.text, user, ctx);
 
     } catch (err) {
         console.error('[VOICE] Fatal error:', err);
