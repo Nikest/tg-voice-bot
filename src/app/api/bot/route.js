@@ -31,51 +31,45 @@ async function findOrCreateUser(telegramUserId) {
     return user;
 }
 
-async function getNoisePathForUser(user) {
-    if (!user || !user.selectedNoiseTag) {
+async function getValidRandomNoisePath(tag) {
+    if (!tag) return null; // Если тега нет, возвращаем null (без шума)
+
+    await dbConnect();
+
+    // 1. Ищем все записи с этим тегом
+    const candidates = await NoiseSettings.find({ tags: tag });
+
+    if (!candidates || candidates.length === 0) {
+        console.log(`[NOISE] No entries found for tag: "${tag}"`);
         return null;
     }
 
-    try {
-        await dbConnect();
-        const tag = user.selectedNoiseTag;
+    const validPaths = [];
 
-        // Ищем все настройки шума, содержащие данный тег
-        const noises = await NoiseSettings.find({ tags: tag });
+    // 2. Проверяем физическое существование файлов
+    for (const noise of candidates) {
+        const fullPath = path.join(process.cwd(), 'public', 'voices', noise.fileName);
 
-        if (!noises || noises.length === 0) {
-            console.log(`[NOISE] Нет записей для тега: ${tag}`);
-            return null;
+        if (fs.existsSync(fullPath)) {
+            validPaths.push(fullPath);
+        } else {
+            // 3. Если файла нет - удаляем запись из БД (чистка мусора)
+            console.warn(`[NOISE] File missing for ID ${noise._id}. Deleting record.`);
+            await NoiseSettings.deleteOne({ _id: noise._id });
         }
+    }
 
-        const validPaths = [];
-
-        for (const noise of noises) {
-            const filePath = path.join(process.cwd(), 'public', 'voices', noise.fileName);
-
-            if (fs.existsSync(filePath)) {
-                validPaths.push(filePath);
-            } else {
-                console.warn(`[NOISE] Файл не найден: ${filePath}. Удаляю запись из БД.`);
-                await NoiseSettings.deleteOne({ _id: noise._id });
-            }
-        }
-
-        if (validPaths.length === 0) {
-            console.log(`[NOISE] Не осталось валидных файлов для тега: ${tag}`);
-            return null;
-        }
-
-        const randomIndex = Math.floor(Math.random() * validPaths.length);
-        const selectedPath = validPaths[randomIndex];
-
-        console.log(`[NOISE] Выбран шум: ${selectedPath}`);
-        return selectedPath;
-
-    } catch (err) {
-        console.error('[NOISE] Ошибка при выборе шума:', err);
+    if (validPaths.length === 0) {
+        console.log(`[NOISE] All files for tag "${tag}" are missing.`);
         return null;
     }
+
+    // 4. Выбираем случайный файл
+    const randomIndex = Math.floor(Math.random() * validPaths.length);
+    const selectedPath = validPaths[randomIndex];
+
+    console.log(`[NOISE] Selected: ${path.basename(selectedPath)}`);
+    return selectedPath;
 }
 
 async function getAllVoices() {
@@ -113,7 +107,7 @@ async function textToSpeech(text, voiceId) {
                 },
             },
             headers: {
-                'Accept': 'audio/ogg',
+                'Accept': 'audio/mpeg',
                 'xi-api-key': ELEVENLABS_API_KEY,
                 'Content-Type': 'application/json'
             },
@@ -185,12 +179,13 @@ async function speechToText(audioBuffer) {
     }
 }
 
-async function convertAndSend(text, voiceId, ctx) {
+async function convertAndSend(text, user, ctx) {
+    const voiceId = user.selectedVoice || VOICE_ID;
     const rawAudio = await textToSpeech(text, voiceId);
     if (rawAudio.error) return ctx.reply(rawAudio.error);
 
     try {
-        const noisePath = await getNoisePathForUser(user);
+        const noisePath = await getValidRandomNoisePath(user.selectedNoiseTag);
         const perfectVoiceBuffer = await convertToTelegramVoice(rawAudio, noisePath);
 
         await ctx.sendVoice({
