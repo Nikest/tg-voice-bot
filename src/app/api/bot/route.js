@@ -7,7 +7,7 @@ import dbConnect from '@/lib/mongoose';
 import VoiceSettings from '@/models/VoiceSettings';
 import NoiseSettings from "@/models/NoiseSettings";
 import { convertToTelegramVoice } from '@/lib/audioConverter';
-import { findUser, createUser, updateVoice } from '@/lib/userService';
+import { findUser, createUser, updateVoice, updateNoiseTag } from '@/lib/userService';
 import { enhanceTextWithGPT } from '@/lib/gptService';
 
 const bot = new Telegraf(process.env.BOT_TOKEN);
@@ -24,6 +24,7 @@ async function findOrCreateUser(telegramUserId) {
         user = await createUser({
             user: userId,
             selectedVoice: VOICE_ID,
+            selectedNoiseTag: ''
         });
     }
 
@@ -254,6 +255,57 @@ bot.command('changevoice', async (ctx) => {
     } catch (err) {
         console.error('[CMD /changevoice] Error:', err);
         return ctx.reply('Ошибка при смене голоса.');
+    }
+});
+
+bot.command('changenoise', async (ctx) => {
+    const telegramUserId = ctx.from.id;
+    const fullText = ctx.message.text || '';
+
+    const args = fullText.split(' ').slice(1).join(' ').trim().toLowerCase();
+
+    if (!args) {
+        return ctx.reply(
+            'Использование: /changenoise тег\n' +
+            'Например: /changenoise rain\n' +
+            'Чтобы выключить шум: /changenoise off'
+        );
+    }
+
+    const requestedTag = args;
+
+    if (requestedTag === 'off' || requestedTag === 'none' || requestedTag === 'нет') {
+        await findOrCreateUser(telegramUserId);
+        await updateNoiseTag(String(telegramUserId), '');
+        return ctx.reply('Фоновый шум выключен.');
+    }
+
+    try {
+        await dbConnect();
+
+        const noise = await NoiseSettings.findOne({ tags: requestedTag }).lean();
+
+        if (!noise) {
+            const allNoises = await NoiseSettings.find().lean();
+            const tagsSet = new Set();
+            allNoises.forEach(n => {
+                n.tags.forEach(t => tagsSet.add(t));
+            });
+            const list = Array.from(tagsSet).join(', ');
+
+            return ctx.reply(
+                `Шум с тегом "${requestedTag}" не найден.\n` +
+                (list ? `Доступные теги:\n${list}` : 'Тегов пока нет.')
+            );
+        }
+
+        await findOrCreateUser(telegramUserId);
+        await updateNoiseTag(String(telegramUserId), requestedTag);
+
+        return ctx.reply(`Фоновый шум установлен: "${requestedTag}".`);
+    } catch (err) {
+        console.error('[CMD /changenoise] Error:', err);
+        return ctx.reply('Ошибка при смене шума.');
     }
 });
 

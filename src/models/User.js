@@ -11,6 +11,10 @@ const UserSchema = new mongoose.Schema(
             type: String,
             default: '21m00Tcm4TlvDq8ikWAM',
         },
+        selectedNoiseTag: {
+            type: String,
+            default: '',
+        },
         credits: {
             type: Number,
             default: 0,
@@ -18,6 +22,5 @@ const UserSchema = new mongoose.Schema(
     },
     { timestamps: true }
 );
-
 
 export default mongoose.models.User || mongoose.model('User', UserSchema);

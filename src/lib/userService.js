@@ -47,3 +47,12 @@ export async function updateCredits(user, diffCredits) {
 
     return doc;
 }
+
+export async function updateNoiseTag(user, tag) {
+    await dbConnect();
+    return User.findOneAndUpdate(
+        { user },
+        { selectedNoiseTag: tag.toLowerCase() },
+        { new: true }
+    );
+}
