@@ -185,7 +185,8 @@ async function convertAndSend(text, user, ctx) {
     if (rawAudio.error) return ctx.reply(rawAudio.error);
 
     try {
-        const noisePath = await getValidRandomNoisePath(user.selectedNoiseTag);
+        const volume = user.selectedNoiseTag === 'street' ? '1.35' : '2';
+        const noisePath = await getValidRandomNoisePath(user.selectedNoiseTag, volume);
         const perfectVoiceBuffer = await convertToTelegramVoice(rawAudio, noisePath);
 
         await ctx.sendVoice({
@@ -362,9 +363,9 @@ bot.on('text', async (ctx) => {
 
     await ctx.sendChatAction('record_voice');
 
-    const processedText = await enhanceTextWithGPT(text);
+    //const processedText = await enhanceTextWithGPT(text);
 
-    await convertAndSend(processedText, user, ctx);
+    await convertAndSend(text, user, ctx);
 });
 
 

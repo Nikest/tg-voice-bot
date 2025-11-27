@@ -11,7 +11,7 @@ const EQ_SETTINGS = [
     'alimiter=level_in=1:level_out=0.95:limit=0.95:attack=5:release=50'
 ].join(',');
 
-export async function convertToTelegramVoice(inputBuffer, noisePath = null) {
+export async function convertToTelegramVoice(inputBuffer, noisePath = null, noiseVolume = "1.35") {
     return new Promise((resolve, reject) => {
         const outputStream = new PassThrough();
         const inputStream = new PassThrough();
@@ -46,7 +46,7 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null) {
                 .complexFilter([
 
                     `[0:a]${EQ_SETTINGS}[voice_eq]`,
-                    `[1:a]aformat=channel_layouts=mono,volume=1.35[noise_low]`,
+                    `[1:a]aformat=channel_layouts=mono,volume=${noiseVolume}[noise_low]`,
                     `[voice_eq][noise_low]amix=inputs=2:duration=first:dropout_transition=2[out]`
                 ])
                 .map('[out]');
