@@ -5,6 +5,7 @@ import fs from 'fs';
 import path from 'path';
 import dbConnect from '@/lib/mongoose';
 import VoiceSettings from '@/models/VoiceSettings';
+import NoiseSettings from "@/models/NoiseSettings";
 import { convertToTelegramVoice } from '@/lib/audioConverter';
 import { findUser, createUser, updateVoice } from '@/lib/userService';
 import { enhanceTextWithGPT } from '@/lib/gptService';
@@ -187,6 +188,33 @@ bot.command('showallvoices', async (ctx) => {
     } catch (err) {
         console.error('[CMD /showallvoices] Error:', err);
         ctx.reply('Ошибка при получении списка голосов');
+    }
+});
+
+bot.command('showallnoises', async (ctx) => {
+    try {
+        await dbConnect();
+
+        const noises = await NoiseSettings.find().lean();
+
+        if (!noises || noises.length === 0) {
+            return ctx.reply('Нет сохранённых шумов.');
+        }
+
+        const tagsSet = new Set();
+        noises.forEach(n => {
+            n.tags.forEach(tag => tagsSet.add(tag));
+        });
+
+        const tagsList = Array.from(tagsSet);
+        if (tagsList.length === 0) {
+            return ctx.reply('Нет сохранённых тегов для шумов.');
+        }
+
+        return ctx.reply(`Доступные теги шумов:\n• ${tagsList.join('\n• ')}`);
+    } catch (err) {
+        console.error('[CMD /showallnoises] Error:', err);
+        ctx.reply('Ошибка при получении списка шумов');
     }
 });
 
