@@ -45,7 +45,8 @@ export async function POST(req) {
         const tagsArray = tagsRaw
             .split(',')
             .map(tag => tag.trim())
-            .filter(tag => tag.length > 0);
+            .filter(tag => tag.length > 0)
+            .map(tag => tag.toLowerCase());
 
 
         const arrayBuffer = await file.arrayBuffer();
