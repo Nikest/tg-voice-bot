@@ -55,9 +55,10 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null) {
                     // 1. Эквалайзер на голос [0:a] -> [voice_eq]
                     `[0:a]${EQ_SETTINGS}[voice_eq]`,
 
-                    // 2. Уменьшаем громкость шума [1:a] -> [noise_low]
-                    // volume=0.15 (15%) - можно настроить под себя.
-                    `[1:a]volume=0.15[noise_low]`,
+                    // 2. Обработка шума:
+                    // aformat=channel_layouts=mono: Принудительно делаем шум моно, чтобы он корректно лег под голос
+                    // volume=0.5: Подняли громкость до 50% (было 0.15, возможно слишком тихо)
+                    `[1:a]aformat=channel_layouts=mono,volume=0.75[noise_low]`,
 
                     // 3. Смешиваем. duration=first обрезает шум по длине голоса.
                     `[voice_eq][noise_low]amix=inputs=2:duration=first:dropout_transition=2[out]`
