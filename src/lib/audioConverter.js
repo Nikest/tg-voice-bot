@@ -46,7 +46,7 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null) {
                 .complexFilter([
 
                     `[0:a]${EQ_SETTINGS}[voice_eq]`,
-                    `[1:a]aformat=channel_layouts=mono,volume=1[noise_low]`,
+                    `[1:a]aformat=channel_layouts=mono,volume=1.35[noise_low]`,
                     `[voice_eq][noise_low]amix=inputs=2:duration=first:dropout_transition=2[out]`
                 ])
                 .map('[out]');
