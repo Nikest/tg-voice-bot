@@ -8,31 +8,6 @@ export default async function VoicesPage() {
 
     let voices = await VoiceSettings.find().lean();
 
-    // if (voices.length === 0) {
-    //     voices = [
-    //         {
-    //             _id: "example1",
-    //             voiceId: "EXAMPLE_VOICE_ID_123",
-    //             voiceName: "Example Voice",
-    //             stability: 0.55,
-    //             similarityBoost: 0.82,
-    //             style: 0.0,
-    //             useSpeakerBoost: true,
-    //             exampleFileName: "sample.ogg",
-    //         },
-    //         {
-    //             _id: "example2",
-    //             voiceId: "DEMO_VOICE_456",
-    //             voiceName: "Demo Voice 2",
-    //             stability: 0.72,
-    //             similarityBoost: 0.91,
-    //             style: 0.15,
-    //             useSpeakerBoost: false,
-    //             exampleFileName: "",
-    //         }
-    //     ];
-    // }
-
     return (
         <div className="flex min-h-screen items-center justify-center bg-zinc-50 dark:bg-black p-6">
             <div className="w-full max-w-4xl space-y-6">
