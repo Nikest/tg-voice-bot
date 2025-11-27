@@ -31,6 +31,53 @@ async function findOrCreateUser(telegramUserId) {
     return user;
 }
 
+async function getNoisePathForUser(user) {
+    if (!user || !user.selectedNoiseTag) {
+        return null;
+    }
+
+    try {
+        await dbConnect();
+        const tag = user.selectedNoiseTag;
+
+        // Ищем все настройки шума, содержащие данный тег
+        const noises = await NoiseSettings.find({ tags: tag });
+
+        if (!noises || noises.length === 0) {
+            console.log(`[NOISE] Нет записей для тега: ${tag}`);
+            return null;
+        }
+
+        const validPaths = [];
+
+        for (const noise of noises) {
+            const filePath = path.join(process.cwd(), 'public', 'voices', noise.fileName);
+
+            if (fs.existsSync(filePath)) {
+                validPaths.push(filePath);
+            } else {
+                console.warn(`[NOISE] Файл не найден: ${filePath}. Удаляю запись из БД.`);
+                await NoiseSettings.deleteOne({ _id: noise._id });
+            }
+        }
+
+        if (validPaths.length === 0) {
+            console.log(`[NOISE] Не осталось валидных файлов для тега: ${tag}`);
+            return null;
+        }
+
+        const randomIndex = Math.floor(Math.random() * validPaths.length);
+        const selectedPath = validPaths[randomIndex];
+
+        console.log(`[NOISE] Выбран шум: ${selectedPath}`);
+        return selectedPath;
+
+    } catch (err) {
+        console.error('[NOISE] Ошибка при выборе шума:', err);
+        return null;
+    }
+}
+
 async function getAllVoices() {
     await dbConnect();
 
@@ -143,7 +190,8 @@ async function convertAndSend(text, voiceId, ctx) {
     if (rawAudio.error) return ctx.reply(rawAudio.error);
 
     try {
-        const perfectVoiceBuffer = await convertToTelegramVoice(rawAudio);
+        const noisePath = await getNoisePathForUser(user);
+        const perfectVoiceBuffer = await convertToTelegramVoice(rawAudio, noisePath);
 
         await ctx.sendVoice({
             source: perfectVoiceBuffer,

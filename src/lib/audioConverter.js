@@ -1,40 +1,31 @@
 import ffmpeg from 'fluent-ffmpeg';
 import { PassThrough } from 'stream';
 
-// В Docker (Alpine Linux) ffmpeg обычно лежит здесь.
-// Явное указание пути часто решает проблему "spawn ENOENT" или зависаний.
+// Указываем путь для Alpine Linux (Docker)
 ffmpeg.setFfmpegPath('/usr/bin/ffmpeg');
 
-// --- НАСТРОЙКИ ЭКВАЛАЙЗЕРА ---
-// Мы используем цепочку фильтров.
-// 1. lowshelf: Бас (+12.7dB на 90Hz)
-// 2. equalizer: Середина (+5.9dB на 1.5kHz). width_type=o:width=1 означает ширину в 1 октаву.
-// 3. highshelf: Верха (-8.2dB на 8kHz)
-// 4. alimiter: Лимитер, чтобы не было хрипа (клиппинга) после усиления баса
-const EQ_FILTER_CHAIN = [
-    // 1. Низкие: 90Hz, усиление +3.5dB (как на картинке)
+// Мягкие настройки эквалайзера (Natural Radio)
+const EQ_SETTINGS = [
     'lowshelf=f=90:g=3.5',
-
-    // 2. Средние: 1500Hz, усиление +3.2dB
     'equalizer=f=1500:width_type=o:width=1:g=3.2',
-
-    // 3. Высокие: 8000Hz, ослабление -3.0dB
     'highshelf=f=8000:g=-3.0',
-
-    // 4. Лимитер оставляем для безопасности (чтобы не было хрипа на громких фразах)
     'alimiter=level_in=1:level_out=0.95:limit=0.95:attack=5:release=50'
 ].join(',');
 
-export async function convertToTelegramVoice(inputBuffer) {
+/**
+ * Конвертирует аудио буфер в OGG/Opus для Telegram.
+ * Опционально накладывает фоновый шум.
+ * @param {Buffer} inputBuffer - Аудио голоса
+ * @param {string|null} noisePath - Полный путь к файлу шума (или null)
+ */
+export async function convertToTelegramVoice(inputBuffer, noisePath = null) {
     return new Promise((resolve, reject) => {
         const outputStream = new PassThrough();
         const inputStream = new PassThrough();
 
-        // Важно: Сначала вешаем обработчики ошибок на потоки
         inputStream.on('error', (err) => console.error('[Stream] Input Error:', err));
         outputStream.on('error', (err) => console.error('[Stream] Output Error:', err));
 
-        // Заливаем данные
         inputStream.end(inputBuffer);
 
         const chunks = [];
@@ -43,31 +34,53 @@ export async function convertToTelegramVoice(inputBuffer) {
         outputStream.on('end', () => {
             const resultBuffer = Buffer.concat(chunks);
             if (resultBuffer.length === 0) {
-                // Если буфер пустой, реджектим, чтобы сработал fallback в основном коде
                 return reject(new Error('FFmpeg conversion resulted in empty buffer'));
             }
             resolve(resultBuffer);
         });
 
-        ffmpeg(inputStream)
-            .inputFormat('mp3')
-            .on('stderr', (stderrLine) => {
-                console.log('[FFmpeg Log]:', stderrLine);
-            })
-            .audioFilters(EQ_FILTER_CHAIN)
+        // Создаем команду
+        let command = ffmpeg()
+            .input(inputStream)
+            .inputFormat('mp3'); // ElevenLabs отдает mp3
+
+        // ЛОГИКА ВЕТВЛЕНИЯ: С ШУМОМ ИЛИ БЕЗ
+        if (noisePath) {
+            console.log(`[FFmpeg] Mixing with noise: ${noisePath}`);
+
+            command
+                .input(noisePath)
+                .inputOptions(['-stream_loop -1']) // Зацикливаем шум бесконечно
+                .complexFilter([
+                    // 1. Эквалайзер на голос [0:a] -> [voice_eq]
+                    `[0:a]${EQ_SETTINGS}[voice_eq]`,
+
+                    // 2. Уменьшаем громкость шума [1:a] -> [noise_low]
+                    // volume=0.15 (15%) - можно настроить под себя.
+                    `[1:a]volume=0.15[noise_low]`,
+
+                    // 3. Смешиваем. duration=first обрезает шум по длине голоса.
+                    `[voice_eq][noise_low]amix=inputs=2:duration=first:dropout_transition=2[out]`
+                ])
+                .map('[out]'); // Берем результат микса
+        } else {
+            console.log('[FFmpeg] Applying EQ only (no noise)');
+            // Если шума нет, просто накладываем фильтры на единственный поток
+            command.audioFilters(EQ_SETTINGS);
+        }
+
+        // Общие настройки выхода
+        command
+            .on('stderr', (line) => console.log('[FFmpeg Log]:', line))
             .audioCodec('libopus')
             .format('ogg')
             .outputOptions([
                 '-ac 1',       // Моно
-                '-ar 24000',   // 24kHz (стандарт для voice)
-                '-b:a 24k',    // Битрейт для голоса
+                '-ar 24000',   // 24kHz
+                '-b:a 24k',    // Битрейт
                 '-application voip'
             ])
-            .on('error', (err) => {
-                // Основная ошибка процесса
-                // console.error мы убираем, так как stderr выше даст больше инфы
-                reject(err);
-            })
+            .on('error', (err) => reject(err))
             .pipe(outputStream, { end: true });
     });
 }
