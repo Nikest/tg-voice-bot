@@ -200,6 +200,10 @@ async function convertAndSend(text, user, ctx) {
     }
 }
 
+bot.catch((err, ctx) => {
+    console.log(`Ой, ошибка в обновлении ${ctx.updateType}`, err);
+});
+
 bot.start(async (ctx) => {
     const userName = ctx.from.first_name || 'Гость';
 
