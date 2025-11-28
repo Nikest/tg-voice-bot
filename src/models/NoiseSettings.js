@@ -11,6 +11,10 @@ const NoiseSettingsSchema = new mongoose.Schema(
             type: String,
             required: true,
         },
+        volume: {
+            type: String,
+            default: "1.35",
+        },
         tags: {
             type: [String],
             default: [],

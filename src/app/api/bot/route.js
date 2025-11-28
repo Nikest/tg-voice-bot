@@ -32,7 +32,7 @@ async function findOrCreateUser(telegramUserId) {
 }
 
 async function getValidRandomNoisePath(tag) {
-    if (!tag) return null; // Если тега нет, возвращаем null (без шума)
+    if (!tag) return null;
 
     await dbConnect();
 
@@ -44,14 +44,17 @@ async function getValidRandomNoisePath(tag) {
         return null;
     }
 
-    const validPaths = [];
+    const validEntries = [];
 
     // 2. Проверяем физическое существование файлов
     for (const noise of candidates) {
         const fullPath = path.join(process.cwd(), 'public', 'voices', noise.fileName);
 
         if (fs.existsSync(fullPath)) {
-            validPaths.push(fullPath);
+            validEntries.push({
+                path: fullPath,
+                volume: noise.volume || "1.35"
+            });
         } else {
             // 3. Если файла нет - удаляем запись из БД (чистка мусора)
             console.warn(`[NOISE] File missing for ID ${noise._id}. Deleting record.`);
@@ -59,17 +62,17 @@ async function getValidRandomNoisePath(tag) {
         }
     }
 
-    if (validPaths.length === 0) {
+    if (validEntries.length === 0) {
         console.log(`[NOISE] All files for tag "${tag}" are missing.`);
         return null;
     }
 
-    // 4. Выбираем случайный файл
-    const randomIndex = Math.floor(Math.random() * validPaths.length);
-    const selectedPath = validPaths[randomIndex];
+    const randomIndex = Math.floor(Math.random() * validEntries.length);
+    const selected = validEntries[randomIndex];
 
-    console.log(`[NOISE] Selected: ${path.basename(selectedPath)}`);
-    return selectedPath;
+    console.log(`[NOISE] Selected: ${path.basename(selected.path)} | Volume: ${selected.volume}`);
+
+    return selected;
 }
 
 async function getAllVoices() {
@@ -185,9 +188,16 @@ async function convertAndSend(text, user, ctx) {
     if (rawAudio.error) return ctx.reply(rawAudio.error);
 
     try {
-        const volume = user.selectedNoiseTag === 'street' ? '1.35' : '2';
-        const noisePath = await getValidRandomNoisePath(user.selectedNoiseTag, volume);
-        const perfectVoiceBuffer = await convertToTelegramVoice(rawAudio, noisePath);
+        const noiseData = await getValidRandomNoisePath(user.selectedNoiseTag);
+        let noisePath = null;
+        let noiseVolume = '1.35';
+
+        if (noiseData) {
+            noisePath = noiseData.path;
+            noiseVolume = noiseData.volume || '1.35';
+        }
+
+        const perfectVoiceBuffer = await convertToTelegramVoice(rawAudio, noisePath, noiseVolume);
 
         await ctx.sendVoice({
             source: perfectVoiceBuffer,

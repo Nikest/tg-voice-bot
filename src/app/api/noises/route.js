@@ -29,6 +29,7 @@ export async function POST(req) {
 
         const formData = await req.formData();
         const tagsRaw = formData.get('tags') || '';
+        const volumeRaw = formData.get('volume') || '1.35';
         const file = formData.get('noiseFile');
 
         if (!file || typeof file !== 'object' || !file.name) {
@@ -82,6 +83,7 @@ export async function POST(req) {
             name: uniqueName,
             fileName: finalFileName,
             tags: tagsArray,
+            volume: volumeRaw,
         });
 
         console.log('[NOISE] Created new noise entry:', doc.name);
@@ -91,5 +93,29 @@ export async function POST(req) {
     } catch (err) {
         console.error('[NOISE CREATE] Error:', err);
         return NextResponse.json({ error: 'Internal error' }, { status: 500 });
+    }
+}
+
+export async function PUT(req) {
+    try {
+        await dbConnect();
+        const body = await req.json();
+        const { id, volume } = body;
+
+        if (!id || !volume) {
+            return NextResponse.json({ error: 'Missing id or volume' }, { status: 400 });
+        }
+
+        const updated = await NoiseSettings.findByIdAndUpdate(
+            id,
+            { volume },
+            { new: true }
+        );
+
+        return NextResponse.json({ success: true, data: updated });
+
+    } catch (err) {
+        console.error('[NOISE UPDATE] Error:', err);
+        return NextResponse.json({ error: 'Update failed' }, { status: 500 });
     }
 }
