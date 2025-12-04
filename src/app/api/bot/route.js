@@ -199,14 +199,42 @@ async function convertAndSend(text, user, ctx) {
 
         const perfectVoiceBuffer = await convertToTelegramVoice(rawAudio, noisePath, noiseVolume);
 
-        await ctx.sendVoice({
-            source: perfectVoiceBuffer,
-            filename: 'voice.ogg'
-        });
+        try {
+            await ctx.sendVoice({
+                source: perfectVoiceBuffer,
+                filename: 'voice.ogg'
+            });
+        } catch (voiceErr) {
+            if (voiceErr.description && voiceErr.description.includes('VOICE_MESSAGES_FORBIDDEN')) {
+                console.log('[VOICE] User has voice messages disabled, sending as audio file');
+                await ctx.sendAudio({
+                    source: perfectVoiceBuffer,
+                    filename: 'audio.ogg'
+                }, {
+                    caption: '🔊 Аудио-файл (у вас отключены голосовые сообщения)'
+                });
+            } else {
+                throw voiceErr;
+            }
+        }
 
     } catch (err) {
         console.error('Ошибка конвертации:', err);
-        await ctx.sendVoice({ source: rawAudio, filename: 'voice.ogg' });
+        try {
+            await ctx.sendVoice({ source: rawAudio, filename: 'voice.ogg' });
+        } catch (fallbackErr) {
+            if (fallbackErr.description && fallbackErr.description.includes('VOICE_MESSAGES_FORBIDDEN')) {
+                console.log('[VOICE] User has voice messages disabled, sending raw audio as audio file');
+                await ctx.sendAudio({
+                    source: rawAudio,
+                    filename: 'audio.mp3'
+                }, {
+                    caption: '🔊 Аудио-файл (у вас отключены голосовые сообщения)'
+                });
+            } else {
+                throw fallbackErr;
+            }
+        }
     }
 }
 
@@ -272,10 +300,22 @@ bot.command('showallvoices', async (ctx) => {
 
             await ctx.sendChatAction('upload_voice');
 
-            await ctx.sendVoice(
-                { source: fs.createReadStream(filePath) },
-                { caption: v.voiceName }
-            );
+            try {
+                await ctx.sendVoice(
+                    { source: fs.createReadStream(filePath) },
+                    { caption: v.voiceName }
+                );
+            } catch (voiceErr) {
+                if (voiceErr.description && voiceErr.description.includes('VOICE_MESSAGES_FORBIDDEN')) {
+                    console.log('[VOICE] User has voice messages disabled, sending example as audio file');
+                    await ctx.sendAudio(
+                        { source: fs.createReadStream(filePath) },
+                        { caption: `🔊 ${v.voiceName} (аудио-файл)` }
+                    );
+                } else {
+                    throw voiceErr;
+                }
+            }
         }
     } catch (err) {
         console.error('[CMD /showallvoices] Error:', err);
