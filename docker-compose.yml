@@ -1,0 +1,25 @@
+version: '3.8'
+
+services:
+  bot:
+    build: .
+
+    container_name: tg-bot-app
+
+    restart: always
+
+    ports:
+      - "3000:3000"
+
+    env_file:
+      - .env
+
+    environment:
+      - NODE_ENV=production
+      - PORT=3000
+
+    deploy:
+      resources:
+        limits:
+          cpus: '0.50'
+          memory: 512M
