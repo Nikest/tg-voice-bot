@@ -63,7 +63,9 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null, nois
                 '-ac 1',
                 '-ar 24000',
                 '-b:a 24k',
-                '-application voip'
+                '-application voip',
+                '-threads 1',
+                '-cpu-used 5'
             ])
             .on('error', (err) => reject(err))
             .pipe(outputStream, { end: true });
