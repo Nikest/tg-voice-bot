@@ -49,6 +49,16 @@ export async function POST(req) {
             .filter(tag => tag.length > 0)
             .map(tag => tag.toLowerCase());
 
+        // SECURITY: Validate file extension
+        const originalExt = path.extname(file.name).toLowerCase();
+        const allowedExtensions = ['.mp3', '.ogg', '.wav', '.m4a', '.flac'];
+
+        if (!allowedExtensions.includes(originalExt)) {
+            return NextResponse.json(
+                { error: `Invalid file type. Allowed: ${allowedExtensions.join(', ')}` },
+                { status: 400 }
+            );
+        }
 
         const arrayBuffer = await file.arrayBuffer();
         const buffer = Buffer.from(arrayBuffer);
@@ -56,7 +66,8 @@ export async function POST(req) {
         const uploadDir = path.join(process.cwd(), 'public', 'voices');
         await fs.mkdir(uploadDir, { recursive: true });
 
-        const tempName = `${uniqueName}_temp${path.extname(file.name)}`;
+        // Use safe extension instead of user-provided one
+        const tempName = `${uniqueName}_temp${originalExt}`;
         const tempPath = path.join(uploadDir, tempName);
 
         const finalFileName = `${uniqueName}.ogg`;
