@@ -4,14 +4,17 @@ import { promises as fs } from 'fs';
 
 import dbConnect from '@/lib/mongoose';
 import NoiseSettings from '@/models/NoiseSettings';
+import VoiceSettings from '@/models/VoiceSettings';
 
 export async function GET() {
     try {
         await dbConnect();
 
         const noises = await NoiseSettings.find();
+        const voices = await VoiceSettings.find();
 
         const missingFiles = [];
+        const missingVoiceExamples = [];
 
         let updatedTagsCount = 0;
 
@@ -31,6 +34,7 @@ export async function GET() {
                     id: String(noise._id),
                     name: noise.name,
                     fileName: noise.fileName,
+                    type: 'noise'
                 });
             }
 
@@ -55,10 +59,39 @@ export async function GET() {
             }
         }
 
+        for (const voice of voices) {
+            if (voice.exampleFileName && voice.exampleFileName.trim() !== '') {
+                const filePath = path.join(
+                    process.cwd(),
+                    'public',
+                    'voices',
+                    voice.exampleFileName
+                );
+
+                try {
+                    await fs.access(filePath);
+                } catch {
+                    missingVoiceExamples.push({
+                        id: String(voice._id),
+                        voiceId: voice.voiceId,
+                        voiceName: voice.voiceName,
+                        exampleFileName: voice.exampleFileName,
+                        type: 'voice'
+                    });
+                }
+            }
+        }
+
         return NextResponse.json({
-            checkedDocuments: noises.length,
-            tagsUpdatedFor: updatedTagsCount,
-            missingFiles,
+            noiseSettings: {
+                checkedDocuments: noises.length,
+                tagsUpdatedFor: updatedTagsCount,
+                missingFiles,
+            },
+            voiceSettings: {
+                checkedDocuments: voices.length,
+                missingExampleFiles: missingVoiceExamples,
+            },
         });
     } catch (err) {
         console.error('[DB_CHECKING] Error:', err);
