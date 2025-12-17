@@ -43,7 +43,6 @@ function validateFilePath(filePath) {
 
     for (const pattern of dangerousPatterns) {
         if (filePath.includes(pattern)) {
-            console.error(`[SECURITY] Dangerous pattern detected in path: ${pattern}`);
             return false;
         }
     }
@@ -51,20 +50,17 @@ function validateFilePath(filePath) {
     // Validate filename format (alphanumeric, underscore, hyphen, dot only)
     const basename = path.basename(filePath);
     if (!/^[a-zA-Z0-9_\-\.]+$/.test(basename)) {
-        console.error(`[SECURITY] Invalid filename format: ${basename}`);
         return false;
     }
 
     // Check file exists
     if (!fs.existsSync(filePath)) {
-        console.error(`[SECURITY] File does not exist: ${filePath}`);
         return false;
     }
 
     // Check it's a regular file (not a device, socket, etc.)
     const stats = fs.statSync(filePath);
     if (!stats.isFile()) {
-        console.error(`[SECURITY] Path is not a regular file: ${filePath}`);
         return false;
     }
 
@@ -76,7 +72,6 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null, nois
         // SECURITY: Validate noiseVolume is a safe numeric value
         const volumeFloat = parseFloat(noiseVolume);
         if (isNaN(volumeFloat) || volumeFloat < 0 || volumeFloat > 10) {
-            console.error(`[SECURITY] Invalid noise volume: ${noiseVolume}, using default 1.35`);
             noiseVolume = "1.35";
         }
 
@@ -107,11 +102,9 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null, nois
         if (noisePath) {
             // SECURITY: Validate file path before passing to FFmpeg
             if (!validateFilePath(noisePath)) {
-                console.error(`[SECURITY] Invalid or dangerous noise path rejected: ${noisePath}`);
-                console.log('[FFmpeg] Applying EQ only (noise path validation failed)');
                 command.audioFilters(EQ_SETTINGS);
             } else {
-                console.log(`[FFmpeg] Mixing with noise: ${noisePath}`);
+
 
                 command
                     .input(noisePath)
@@ -125,12 +118,12 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null, nois
                     .map('[out]');
             }
         } else {
-            console.log('[FFmpeg] Applying EQ only (no noise)');
+
             command.audioFilters(EQ_SETTINGS);
         }
 
         command
-            .on('stderr', (line) => console.log('[FFmpeg Log]:', line))
+            .on('stderr')
             .audioCodec('libopus')
             .format('ogg')
             .outputOptions([

@@ -40,7 +40,6 @@ async function getValidRandomNoisePath(tag) {
     const candidates = await NoiseSettings.find({ tags: tag });
 
     if (!candidates || candidates.length === 0) {
-        console.log(`[NOISE] No entries found for tag: "${tag}"`);
         return null;
     }
 
@@ -56,21 +55,16 @@ async function getValidRandomNoisePath(tag) {
                 volume: noise.volume || "1.35"
             });
         } else {
-            // 3. Если файла нет - удаляем запись из БД (чистка мусора)
-            console.warn(`[NOISE] File missing for ID ${noise._id}. Deleting record.`);
             await NoiseSettings.deleteOne({ _id: noise._id });
         }
     }
 
     if (validEntries.length === 0) {
-        console.log(`[NOISE] All files for tag "${tag}" are missing.`);
         return null;
     }
 
     const randomIndex = Math.floor(Math.random() * validEntries.length);
     const selected = validEntries[randomIndex];
-
-    console.log(`[NOISE] Selected: ${path.basename(selected.path)} | Volume: ${selected.volume}`);
 
     return selected;
 }
@@ -118,14 +112,13 @@ async function textToSpeech(text, voiceId) {
             timeout: 45000
         });
 
-        console.log(`[TTS] Успешно получено аудио: ${response.data.byteLength} байт`);
         return response.data;
 
     } catch (error) {
         if (error.response) {
             const status = error.response.status;
             const data = error.response.data ? Buffer.from(error.response.data).toString('utf-8').slice(0, 500) : 'no body';
-            console.error(`[TTS] ElevenLabs ошибка ${status}: ${data}`);
+
 
 
             if (status === 401) return { error: 'Неверный API-ключ ElevenLabs' };
@@ -133,7 +126,7 @@ async function textToSpeech(text, voiceId) {
             if (status === 429) return { error: 'Лимит ElevenLabs превышен' };
             if (status === 422) return { error: 'Текст слишком длинный или содержит запрещённые символы' };
         } else {
-            console.error('[TTS] Ошибка сети или таймаут:', error.message);
+
             return { error: 'Не смог связаться с ElevenLabs' };
         }
         return { error: 'Неизвестная ошибка ElevenLabs' };
@@ -141,7 +134,6 @@ async function textToSpeech(text, voiceId) {
 }
 
 async function speechToText(audioBuffer) {
-    console.log(`[STT] Распознаём аудио ${audioBuffer.byteLength} байт`);
 
     const formData = new FormData();
     formData.append('model_id', 'scribe_v1');
@@ -165,11 +157,9 @@ async function speechToText(audioBuffer) {
 
         const text = res.data.text?.trim();
         if (!text || text.length === 0) {
-            console.log('[STT] Пустой результат');
             return { error: 'Не смог разобрать речь — тишина или шум' };
         }
 
-        console.log(`[STT] Распознанный текст: "${text}"`);
         return { text };
 
     } catch (err) {
@@ -206,7 +196,6 @@ async function convertAndSend(text, user, ctx) {
             });
         } catch (voiceErr) {
             if (voiceErr.description && voiceErr.description.includes('VOICE_MESSAGES_FORBIDDEN')) {
-                console.log('[VOICE] User has voice messages disabled, sending as audio file');
                 await ctx.sendAudio({
                     source: perfectVoiceBuffer,
                     filename: 'audio.ogg'
@@ -224,7 +213,6 @@ async function convertAndSend(text, user, ctx) {
             await ctx.sendVoice({ source: rawAudio, filename: 'voice.ogg' });
         } catch (fallbackErr) {
             if (fallbackErr.description && fallbackErr.description.includes('VOICE_MESSAGES_FORBIDDEN')) {
-                console.log('[VOICE] User has voice messages disabled, sending raw audio as audio file');
                 await ctx.sendAudio({
                     source: rawAudio,
                     filename: 'audio.mp3'
@@ -293,7 +281,6 @@ bot.command('showallvoices', async (ctx) => {
             const filePath = path.join(process.cwd(), 'public', 'voices', v.exampleFileName);
 
             if (!fs.existsSync(filePath)) {
-                console.warn(`[VOICES] Файл не найден: ${filePath}`);
                 await ctx.reply(`Файл для голоса "${v.voiceName}" не найден.`);
                 continue;
             }
@@ -307,7 +294,6 @@ bot.command('showallvoices', async (ctx) => {
                 );
             } catch (voiceErr) {
                 if (voiceErr.description && voiceErr.description.includes('VOICE_MESSAGES_FORBIDDEN')) {
-                    console.log('[VOICE] User has voice messages disabled, sending example as audio file');
                     await ctx.sendAudio(
                         { source: fs.createReadStream(filePath) },
                         { caption: `🔊 ${v.voiceName} (аудио-файл)` }
@@ -481,7 +467,6 @@ bot.on('voice', async (ctx) => {
 
 
 bot.on('message', (ctx) => {
-    console.log(`[MSG] Неподдерживаемый тип сообщения от ${ctx.from.id}: ${ctx.message?.caption || ctx.message?.voice ? 'voice/file' : 'другое'}`);
     ctx.reply('Пиши текст — я озвучу его голосом');
 });
 
@@ -504,5 +489,4 @@ export async function POST(request) {
 
 if (process.env.NODE_ENV !== 'production') {
     bot.launch();
-    console.log('Bot running in polling mode (dev)');
 }

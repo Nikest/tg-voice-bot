@@ -94,7 +94,6 @@ export async function GET() {
             },
         });
     } catch (err) {
-        console.error('[DB_CHECKING] Error:', err);
         return NextResponse.json(
             { error: 'Internal error during db_checking' },
             { status: 500 }

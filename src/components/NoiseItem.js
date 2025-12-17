@@ -25,7 +25,6 @@ export default function NoiseItem({ noise }) {
                 alert('Failed to update volume');
             }
         } catch (error) {
-            console.error(error);
             alert('Error updating volume');
         } finally {
             setIsLoading(false);

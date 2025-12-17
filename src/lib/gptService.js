@@ -29,11 +29,10 @@ export async function enhanceTextWithGPT(inputText) {
         });
 
         const enhancedText = completion.choices[0].message.content;
-        console.log(`[GPT] Original: "${inputText}" -> Enhanced: "${enhancedText}"`);
         return enhancedText;
 
     } catch (error) {
-        console.error('[GPT] Error processing text:', error);
+
         return inputText;
     }
 }

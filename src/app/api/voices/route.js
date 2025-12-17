@@ -44,9 +44,7 @@ export async function POST(req) {
             );
         }
 
-        // --------------------------
-        //  FILE UPLOAD + CONVERSION
-        // --------------------------
+
         if (file && typeof file === 'object' && file.name) {
             const arrayBuffer = await file.arrayBuffer();
             const buffer = Buffer.from(arrayBuffer);
@@ -58,24 +56,18 @@ export async function POST(req) {
             const mp3Name = `${Date.now()}_${voiceId}.mp3`;
             const mp3Path = path.join(uploadDir, mp3Name);
 
-            // 1) Сохранить mp3 временно
             await fs.writeFile(mp3Path, buffer);
-            console.log('[UPLOAD] Saved MP3:', mp3Path);
 
-            // 2) Конвертируем в .ogg
             const oggName = `${Date.now()}_${voiceId}.ogg`;
             const oggPath = path.join(uploadDir, oggName);
 
             try {
                 await convertMp3ToOpus(mp3Path, oggPath);
-                console.log('[CONVERT] Created OGG:', oggPath);
             } catch (err) {
                 console.error('[CONVERT] Error:', err);
             }
 
-            // 3) Удаляем временный mp3
             await fs.unlink(mp3Path).catch(() => {});
-            console.log('[CLEANUP] Removed MP3');
 
             storedFileName = oggName;
         }
@@ -92,8 +84,6 @@ export async function POST(req) {
             useSpeakerBoost,
             exampleFileName: storedFileName,
         });
-
-        console.log('[VOICE] Created new voice:', doc.voiceName);
 
 
         return NextResponse.redirect(new URL('/voices', req.url));

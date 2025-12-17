@@ -74,14 +74,11 @@ export async function POST(req) {
         const finalPath = path.join(uploadDir, finalFileName);
 
         await fs.writeFile(tempPath, buffer);
-        console.log('[NOISE UPLOAD] Saved Temp:', tempPath);
 
 
         try {
             await convertMp3ToOpus(tempPath, finalPath);
-            console.log('[NOISE CONVERT] Created OGG:', finalPath);
         } catch (err) {
-            console.error('[NOISE CONVERT] Error:', err);
             await fs.unlink(tempPath).catch(() => {});
             return NextResponse.json({ error: 'Conversion failed' }, { status: 500 });
         }
@@ -97,12 +94,9 @@ export async function POST(req) {
             volume: volumeRaw,
         });
 
-        console.log('[NOISE] Created new noise entry:', doc.name);
-
         return NextResponse.redirect(new URL('/noises', req.url));
 
     } catch (err) {
-        console.error('[NOISE CREATE] Error:', err);
         return NextResponse.json({ error: 'Internal error' }, { status: 500 });
     }
 }
@@ -126,7 +120,6 @@ export async function PUT(req) {
         return NextResponse.json({ success: true, data: updated });
 
     } catch (err) {
-        console.error('[NOISE UPDATE] Error:', err);
         return NextResponse.json({ error: 'Update failed' }, { status: 500 });
     }
 }

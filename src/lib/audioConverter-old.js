@@ -37,9 +37,7 @@ export async function convertToTelegramVoice(inputBuffer) {
 
         ffmpeg(inputStream)
             .inputFormat('mp3')
-            .on('stderr', (stderrLine) => {
-                console.log('[FFmpeg Log]:', stderrLine);
-            })
+            .on('stderr')
             .audioFilters(EQ_FILTER_CHAIN)
             .audioCodec('libopus')
             .format('ogg')
@@ -50,8 +48,6 @@ export async function convertToTelegramVoice(inputBuffer) {
                 '-application voip'
             ])
             .on('error', (err) => {
-                // Основная ошибка процесса
-                // console.error мы убираем, так как stderr выше даст больше инфы
                 reject(err);
             })
             .pipe(outputStream, { end: true });
