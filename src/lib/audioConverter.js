@@ -10,7 +10,6 @@ const EQ_SETTINGS = [
     'lowshelf=f=90:g=3.5',
     'equalizer=f=1500:width_type=o:width=1:g=3.2',
     'highshelf=f=8000:g=-3.0',
-    'alimiter=level_in=1:level_out=0.95:limit=0.95:attack=5:release=50'
 ].join(',');
 
 /**
@@ -78,8 +77,6 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null, nois
         const outputStream = new PassThrough();
         const inputStream = new PassThrough();
 
-        inputStream.on('error', (err) => console.error('[Stream] Input Error:', err));
-        outputStream.on('error', (err) => console.error('[Stream] Output Error:', err));
 
         inputStream.end(inputBuffer);
 
@@ -100,7 +97,6 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null, nois
             .inputFormat('mp3');
 
         if (noisePath) {
-            // SECURITY: Validate file path before passing to FFmpeg
             if (!validateFilePath(noisePath)) {
                 command.audioFilters(EQ_SETTINGS);
             } else {
@@ -131,8 +127,6 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null, nois
                 '-ar 24000',
                 '-b:a 24k',
                 '-application voip',
-                '-threads 1',
-                '-cpu-used 5'
             ])
             .on('error', (err) => reject(err))
             .pipe(outputStream, { end: true });
