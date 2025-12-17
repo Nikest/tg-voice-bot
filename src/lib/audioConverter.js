@@ -119,7 +119,6 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null, nois
         }
 
         command
-            .on('stderr')
             .audioCodec('libopus')
             .format('ogg')
             .outputOptions([
