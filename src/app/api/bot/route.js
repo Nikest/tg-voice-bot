@@ -195,7 +195,9 @@ async function convertAndSend(text, user, ctx) {
                 filename: 'voice.ogg'
             });
         } catch (voiceErr) {
-            if (voiceErr.description && voiceErr.description.includes('VOICE_MESSAGES_FORBIDDEN')) {
+            const errorMessage = voiceErr.description || voiceErr.message || String(voiceErr);
+
+            if (errorMessage.includes('VOICE_MESSAGES_FORBIDDEN')) {
                 await ctx.sendAudio({
                     source: perfectVoiceBuffer,
                     filename: 'audio.ogg'
@@ -212,7 +214,9 @@ async function convertAndSend(text, user, ctx) {
         try {
             await ctx.sendVoice({ source: rawAudio, filename: 'voice.ogg' });
         } catch (fallbackErr) {
-            if (fallbackErr.description && fallbackErr.description.includes('VOICE_MESSAGES_FORBIDDEN')) {
+            const errorMessage = fallbackErr.description || fallbackErr.message || String(fallbackErr);
+
+            if (errorMessage.includes('VOICE_MESSAGES_FORBIDDEN')) {
                 await ctx.sendAudio({
                     source: rawAudio,
                     filename: 'audio.mp3'
@@ -293,7 +297,9 @@ bot.command('showallvoices', async (ctx) => {
                     { caption: v.voiceName }
                 );
             } catch (voiceErr) {
-                if (voiceErr.description && voiceErr.description.includes('VOICE_MESSAGES_FORBIDDEN')) {
+                const errorMessage = voiceErr.description || voiceErr.message || String(voiceErr);
+
+                if (errorMessage.includes('VOICE_MESSAGES_FORBIDDEN')) {
                     await ctx.sendAudio(
                         { source: fs.createReadStream(filePath) },
                         { caption: `🔊 ${v.voiceName} (аудио-файл)` }
