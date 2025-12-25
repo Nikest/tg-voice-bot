@@ -68,12 +68,9 @@ function validateFilePath(filePath) {
 
 export async function convertToMp3Audio(inputBuffer, noisePath = null, noiseVolume = "1.35") {
     return new Promise((resolve, reject) => {
-        console.log('[MP3 CONVERT] Получены параметры - noisePath:', noisePath ? 'есть' : 'нет', 'noiseVolume:', noiseVolume);
-
         // SECURITY: Validate noiseVolume is a safe numeric value
         const volumeFloat = parseFloat(noiseVolume);
         if (isNaN(volumeFloat) || volumeFloat < 0 || volumeFloat > 10) {
-            console.log('[MP3 CONVERT] Громкость невалидна, используем 1.35. Было:', noiseVolume);
             noiseVolume = "1.35";
         }
 
@@ -99,10 +96,8 @@ export async function convertToMp3Audio(inputBuffer, noisePath = null, noiseVolu
 
         if (noisePath) {
             if (!validateFilePath(noisePath)) {
-                console.log('[MP3 CONVERT] Путь к шуму НЕ прошел валидацию, применяю только EQ');
                 command.audioFilters(EQ_SETTINGS);
             } else {
-                console.log('[MP3 CONVERT] Добавляю шум с громкостью:', noiseVolume);
                 command
                     .input(noisePath)
                     .inputOptions(['-stream_loop -1'])
@@ -114,7 +109,6 @@ export async function convertToMp3Audio(inputBuffer, noisePath = null, noiseVolu
                     .map('[out]');
             }
         } else {
-            console.log('[MP3 CONVERT] Шум не выбран, применяю только EQ');
             command.audioFilters(EQ_SETTINGS);
         }
 
@@ -189,8 +183,7 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null, nois
             .outputOptions([
                 '-ac 1',
                 '-ar 24000',
-                '-b:a 24k',
-                '-application voip',
+                '-b:a 64k'
             ])
             .on('error', (err) => reject(err))
             .pipe(outputStream, { end: true });

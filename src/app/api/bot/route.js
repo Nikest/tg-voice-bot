@@ -186,58 +186,45 @@ async function convertAndSend(text, user, ctx) {
             noisePath = noiseData.path;
             noiseVolume = noiseData.volume || '1.35';
         }
-        console.log('[NOISE] Настройки шума - Путь:', noisePath ? 'есть' : 'нет', 'Громкость:', noiseVolume);
 
         const perfectVoiceBuffer = await convertToTelegramVoice(rawAudio, noisePath, noiseVolume);
-        console.log('[CONVERT] Конвертация успешна. Шум:', noisePath ? 'ДА' : 'НЕТ', 'Размер буфера:', perfectVoiceBuffer.length);
 
         try {
             await ctx.sendVoice({
                 source: perfectVoiceBuffer,
                 filename: 'voice.ogg'
             });
-            console.log('[SEND] Голосовое отправлено успешно');
         } catch (voiceErr) {
             const errorMessage = voiceErr.description || voiceErr.message || String(voiceErr);
-            console.log('[SEND] Ошибка sendVoice:', errorMessage);
 
             if (errorMessage.includes('VOICE_MESSAGES_FORBIDDEN')) {
-                console.log('[SEND] Обнаружен VOICE_MESSAGES_FORBIDDEN, конвертирую в MP3 с шумом');
-                console.log('[SEND] Параметры для MP3 - Путь:', noisePath ? 'есть' : 'нет', 'Громкость:', noiseVolume);
                 // Telegram блокирует OGG при запрете на голосовые, конвертируем в MP3
                 const mp3Buffer = await convertToMp3Audio(rawAudio, noisePath, noiseVolume);
-                console.log('[SEND] MP3 конвертация успешна. Размер:', mp3Buffer.length);
                 await ctx.sendAudio({
                     source: mp3Buffer,
                     filename: 'audio.mp3'
                 }, {
                     caption: '🔊 Аудио-файл (у вас отключены голосовые сообщения)'
                 });
-                console.log('[SEND] MP3 аудио отправлено успешно');
             } else {
                 throw voiceErr;
             }
         }
 
     } catch (err) {
-        console.error('[FALLBACK] Ошибка конвертации:', err.message || err);
-        console.log('[FALLBACK] Попытка отправить rawAudio (без обработки)');
+        console.error('Ошибка конвертации:', err);
         try {
             await ctx.sendVoice({ source: rawAudio, filename: 'voice.ogg' });
-            console.log('[FALLBACK] RawAudio отправлен как голосовое');
         } catch (fallbackErr) {
             const errorMessage = fallbackErr.description || fallbackErr.message || String(fallbackErr);
-            console.log('[FALLBACK] Ошибка sendVoice:', errorMessage);
 
             if (errorMessage.includes('VOICE_MESSAGES_FORBIDDEN')) {
-                console.log('[FALLBACK] Отправляю rawAudio как аудио');
                 await ctx.sendAudio({
                     source: rawAudio,
                     filename: 'audio.mp3'
                 }, {
                     caption: '🔊 Аудио-файл (у вас отключены голосовые сообщения)'
                 });
-                console.log('[FALLBACK] RawAudio отправлен как аудио');
             } else {
                 throw fallbackErr;
             }
