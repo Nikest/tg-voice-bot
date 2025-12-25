@@ -188,41 +188,51 @@ async function convertAndSend(text, user, ctx) {
         }
 
         const perfectVoiceBuffer = await convertToTelegramVoice(rawAudio, noisePath, noiseVolume);
+        console.log('[CONVERT] Конвертация успешна. Шум:', noisePath ? 'ДА' : 'НЕТ', 'Размер буфера:', perfectVoiceBuffer.length);
 
         try {
             await ctx.sendVoice({
                 source: perfectVoiceBuffer,
                 filename: 'voice.ogg'
             });
+            console.log('[SEND] Голосовое отправлено успешно');
         } catch (voiceErr) {
             const errorMessage = voiceErr.description || voiceErr.message || String(voiceErr);
+            console.log('[SEND] Ошибка sendVoice:', errorMessage);
 
             if (errorMessage.includes('VOICE_MESSAGES_FORBIDDEN')) {
+                console.log('[SEND] Обнаружен VOICE_MESSAGES_FORBIDDEN, отправляю как аудио. Размер буфера:', perfectVoiceBuffer.length);
                 await ctx.sendAudio({
                     source: perfectVoiceBuffer,
                     filename: 'audio.ogg'
                 }, {
                     caption: '🔊 Аудио-файл (у вас отключены голосовые сообщения)'
                 });
+                console.log('[SEND] Аудио отправлено успешно');
             } else {
                 throw voiceErr;
             }
         }
 
     } catch (err) {
-        console.error('Ошибка конвертации:', err);
+        console.error('[FALLBACK] Ошибка конвертации:', err.message || err);
+        console.log('[FALLBACK] Попытка отправить rawAudio (без обработки)');
         try {
             await ctx.sendVoice({ source: rawAudio, filename: 'voice.ogg' });
+            console.log('[FALLBACK] RawAudio отправлен как голосовое');
         } catch (fallbackErr) {
             const errorMessage = fallbackErr.description || fallbackErr.message || String(fallbackErr);
+            console.log('[FALLBACK] Ошибка sendVoice:', errorMessage);
 
             if (errorMessage.includes('VOICE_MESSAGES_FORBIDDEN')) {
+                console.log('[FALLBACK] Отправляю rawAudio как аудио');
                 await ctx.sendAudio({
                     source: rawAudio,
                     filename: 'audio.mp3'
                 }, {
                     caption: '🔊 Аудио-файл (у вас отключены голосовые сообщения)'
                 });
+                console.log('[FALLBACK] RawAudio отправлен как аудио');
             } else {
                 throw fallbackErr;
             }
