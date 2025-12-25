@@ -186,6 +186,7 @@ async function convertAndSend(text, user, ctx) {
             noisePath = noiseData.path;
             noiseVolume = noiseData.volume || '1.35';
         }
+        console.log('[NOISE] Настройки шума - Путь:', noisePath ? 'есть' : 'нет', 'Громкость:', noiseVolume);
 
         const perfectVoiceBuffer = await convertToTelegramVoice(rawAudio, noisePath, noiseVolume);
         console.log('[CONVERT] Конвертация успешна. Шум:', noisePath ? 'ДА' : 'НЕТ', 'Размер буфера:', perfectVoiceBuffer.length);
@@ -202,6 +203,7 @@ async function convertAndSend(text, user, ctx) {
 
             if (errorMessage.includes('VOICE_MESSAGES_FORBIDDEN')) {
                 console.log('[SEND] Обнаружен VOICE_MESSAGES_FORBIDDEN, конвертирую в MP3 с шумом');
+                console.log('[SEND] Параметры для MP3 - Путь:', noisePath ? 'есть' : 'нет', 'Громкость:', noiseVolume);
                 // Telegram блокирует OGG при запрете на голосовые, конвертируем в MP3
                 const mp3Buffer = await convertToMp3Audio(rawAudio, noisePath, noiseVolume);
                 console.log('[SEND] MP3 конвертация успешна. Размер:', mp3Buffer.length);
