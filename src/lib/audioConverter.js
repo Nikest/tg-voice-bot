@@ -66,6 +66,65 @@ function validateFilePath(filePath) {
     return true;
 }
 
+export async function convertToMp3Audio(inputBuffer, noisePath = null, noiseVolume = "1.35") {
+    return new Promise((resolve, reject) => {
+        // SECURITY: Validate noiseVolume is a safe numeric value
+        const volumeFloat = parseFloat(noiseVolume);
+        if (isNaN(volumeFloat) || volumeFloat < 0 || volumeFloat > 10) {
+            noiseVolume = "1.35";
+        }
+
+        const outputStream = new PassThrough();
+        const inputStream = new PassThrough();
+
+        inputStream.end(inputBuffer);
+
+        const chunks = [];
+
+        outputStream.on('data', (chunk) => chunks.push(chunk));
+        outputStream.on('end', () => {
+            const resultBuffer = Buffer.concat(chunks);
+            if (resultBuffer.length === 0) {
+                return reject(new Error('FFmpeg conversion resulted in empty buffer'));
+            }
+            resolve(resultBuffer);
+        });
+
+        let command = ffmpeg()
+            .input(inputStream)
+            .inputFormat('mp3');
+
+        if (noisePath) {
+            if (!validateFilePath(noisePath)) {
+                command.audioFilters(EQ_SETTINGS);
+            } else {
+                command
+                    .input(noisePath)
+                    .inputOptions(['-stream_loop -1'])
+                    .complexFilter([
+                        `[0:a]${EQ_SETTINGS}[voice_eq]`,
+                        `[1:a]aformat=channel_layouts=mono,volume=${noiseVolume}[noise_low]`,
+                        `[voice_eq][noise_low]amix=inputs=2:duration=first:dropout_transition=2[out]`
+                    ])
+                    .map('[out]');
+            }
+        } else {
+            command.audioFilters(EQ_SETTINGS);
+        }
+
+        command
+            .audioCodec('libmp3lame')
+            .format('mp3')
+            .outputOptions([
+                '-ac 1',
+                '-ar 24000',
+                '-b:a 64k'
+            ])
+            .on('error', (err) => reject(err))
+            .pipe(outputStream, { end: true });
+    });
+}
+
 export async function convertToTelegramVoice(inputBuffer, noisePath = null, noiseVolume = "1.35") {
     return new Promise((resolve, reject) => {
         // SECURITY: Validate noiseVolume is a safe numeric value

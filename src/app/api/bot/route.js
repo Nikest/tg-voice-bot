@@ -6,7 +6,7 @@ import path from 'path';
 import dbConnect from '@/lib/mongoose';
 import VoiceSettings from '@/models/VoiceSettings';
 import NoiseSettings from "@/models/NoiseSettings";
-import { convertToTelegramVoice } from '@/lib/audioConverter';
+import { convertToTelegramVoice, convertToMp3Audio } from '@/lib/audioConverter';
 import { findUser, createUser, updateVoice, updateNoiseTag } from '@/lib/userService';
 import { enhanceTextWithGPT } from '@/lib/gptService';
 
@@ -201,14 +201,17 @@ async function convertAndSend(text, user, ctx) {
             console.log('[SEND] Ошибка sendVoice:', errorMessage);
 
             if (errorMessage.includes('VOICE_MESSAGES_FORBIDDEN')) {
-                console.log('[SEND] Обнаружен VOICE_MESSAGES_FORBIDDEN, отправляю как аудио. Размер буфера:', perfectVoiceBuffer.length);
+                console.log('[SEND] Обнаружен VOICE_MESSAGES_FORBIDDEN, конвертирую в MP3 с шумом');
+                // Telegram блокирует OGG при запрете на голосовые, конвертируем в MP3
+                const mp3Buffer = await convertToMp3Audio(rawAudio, noisePath, noiseVolume);
+                console.log('[SEND] MP3 конвертация успешна. Размер:', mp3Buffer.length);
                 await ctx.sendAudio({
-                    source: perfectVoiceBuffer,
-                    filename: 'audio.ogg'
+                    source: mp3Buffer,
+                    filename: 'audio.mp3'
                 }, {
                     caption: '🔊 Аудио-файл (у вас отключены голосовые сообщения)'
                 });
-                console.log('[SEND] Аудио отправлено успешно');
+                console.log('[SEND] MP3 аудио отправлено успешно');
             } else {
                 throw voiceErr;
             }
