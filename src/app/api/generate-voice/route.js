@@ -1,5 +1,4 @@
-import { textToSpeech } from '../bot/route.js';
-import { convertToTelegramVoice } from '@/lib/audioConverter';
+import { generateVoiceForAPI } from '../bot/route.js';
 
 const TEXT_KEY_API = '46uyw56w4j46HYY4a4';
 
@@ -8,7 +7,14 @@ export async function POST(request) {
         const body = await request.json();
         const { apiKey, text, voiceID } = body;
 
+        console.log('[POST /generate-voice] Request received:', {
+            hasApiKey: !!apiKey,
+            textLength: text?.length,
+            voiceID
+        });
+
         if (!apiKey || !text || !voiceID) {
+            console.log('[POST /generate-voice] Missing required fields');
             return new Response(
                 JSON.stringify({
                     error: 'Missing required fields: apiKey, text, voiceID'
@@ -21,6 +27,7 @@ export async function POST(request) {
         }
 
         if (apiKey !== TEXT_KEY_API) {
+            console.log('[POST /generate-voice] Invalid API key provided');
             return new Response(
                 JSON.stringify({
                     error: 'Invalid API key'
@@ -32,12 +39,15 @@ export async function POST(request) {
             );
         }
 
-        const rawAudio = await textToSpeech(text, voiceID);
+        const result = await generateVoiceForAPI(text, voiceID);
 
-        if (rawAudio.error) {
+        if (result.error) {
+            console.error('[POST /generate-voice] Generation failed:', result);
             return new Response(
                 JSON.stringify({
-                    error: rawAudio.error
+                    error: result.error,
+                    code: result.code,
+                    details: result.details
                 }),
                 {
                     status: 500,
@@ -46,9 +56,9 @@ export async function POST(request) {
             );
         }
 
-        const oggBuffer = await convertToTelegramVoice(rawAudio);
+        console.log('[POST /generate-voice] Success! Returning audio file');
 
-        return new Response(oggBuffer, {
+        return new Response(result.audioBuffer, {
             status: 200,
             headers: {
                 'Content-Type': 'audio/ogg',
@@ -57,11 +67,12 @@ export async function POST(request) {
         });
 
     } catch (error) {
-        console.error('[API /generate-voice] Error:', error);
+        console.error('[POST /generate-voice] Unexpected error:', error);
         return new Response(
             JSON.stringify({
                 error: 'Internal server error',
-                details: error.message
+                details: error.message,
+                stack: error.stack
             }),
             {
                 status: 500,

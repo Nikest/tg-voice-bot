@@ -495,6 +495,60 @@ export async function POST(request) {
 }
 
 
+export async function generateVoiceForAPI(text, voiceId) {
+    try {
+        console.log('[generateVoiceForAPI] Starting voice generation...', {
+            textLength: text?.length,
+            voiceId,
+            hasApiKey: !!ELEVENLABS_API_KEY
+        });
+
+        if (!ELEVENLABS_API_KEY) {
+            return {
+                error: 'ELEVENLABS_API_KEY не настроен в переменных окружения',
+                code: 'MISSING_API_KEY'
+            };
+        }
+
+        if (!text || text.trim().length === 0) {
+            return {
+                error: 'Текст для озвучки не может быть пустым',
+                code: 'EMPTY_TEXT'
+            };
+        }
+
+        if (!voiceId) {
+            return {
+                error: 'Voice ID обязателен',
+                code: 'MISSING_VOICE_ID'
+            };
+        }
+
+        const rawAudio = await textToSpeech(text, voiceId);
+
+        if (rawAudio.error) {
+            console.error('[generateVoiceForAPI] textToSpeech returned error:', rawAudio.error);
+            return rawAudio;
+        }
+
+        console.log('[generateVoiceForAPI] Raw audio generated, size:', rawAudio.length);
+
+        const oggBuffer = await convertToTelegramVoice(rawAudio);
+
+        console.log('[generateVoiceForAPI] OGG conversion complete, size:', oggBuffer.length);
+
+        return { success: true, audioBuffer: oggBuffer };
+
+    } catch (error) {
+        console.error('[generateVoiceForAPI] Unexpected error:', error);
+        return {
+            error: 'Ошибка генерации голоса: ' + error.message,
+            code: 'GENERATION_ERROR',
+            details: error.stack
+        };
+    }
+}
+
 if (process.env.NODE_ENV !== 'production') {
     bot.launch();
 }
