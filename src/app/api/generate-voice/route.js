@@ -1,7 +1,7 @@
 import { textToSpeech } from '../bot/route.js';
 import { convertToTelegramVoice } from '@/lib/audioConverter';
 
-const TEXT_KEY_API = 'textKey1234567890';
+const TEXT_KEY_API = '46uyw56w4j46HYY4a4';
 
 export async function POST(request) {
     try {
