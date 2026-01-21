@@ -15,7 +15,7 @@ const bot = new Telegraf(process.env.BOT_TOKEN);
 const ELEVENLABS_API_KEY = process.env.ELEVENLABS_API_KEY;
 const VOICE_ID = process.env.ELEVENLABS_VOICE_ID || 'pNInz6obpgDQGcFmaJgB';
 
-async function findOrCreateUser(telegramUserId) {
+export async function findOrCreateUser(telegramUserId) {
     const userId = String(telegramUserId);
 
     let user = await findUser(userId);
@@ -31,7 +31,7 @@ async function findOrCreateUser(telegramUserId) {
     return user;
 }
 
-async function getValidRandomNoisePath(tag) {
+export async function getValidRandomNoisePath(tag) {
     if (!tag) return null;
 
     await dbConnect();
@@ -69,7 +69,7 @@ async function getValidRandomNoisePath(tag) {
     return selected;
 }
 
-async function getAllVoices() {
+export async function getAllVoices() {
     await dbConnect();
 
     return VoiceSettings.find({
@@ -77,7 +77,7 @@ async function getAllVoices() {
     }).lean();
 }
 
-async function findVoiceByName(name) {
+export async function findVoiceByName(name) {
     await dbConnect();
 
     const regex = new RegExp(`^${name.trim()}$`, 'i');
@@ -85,7 +85,7 @@ async function findVoiceByName(name) {
     return VoiceSettings.findOne({ voiceName: regex }).lean();
 }
 
-async function textToSpeech(text, voiceId) {
+export async function textToSpeech(text, voiceId) {
     const finalVoiceId = voiceId || VOICE_ID;
     const url = `https://api.elevenlabs.io/v1/text-to-speech/${finalVoiceId}/stream`;
 
@@ -133,7 +133,7 @@ async function textToSpeech(text, voiceId) {
     }
 }
 
-async function speechToText(audioBuffer) {
+export async function speechToText(audioBuffer) {
 
     const formData = new FormData();
     formData.append('model_id', 'scribe_v1');
@@ -172,7 +172,7 @@ async function speechToText(audioBuffer) {
     }
 }
 
-async function convertAndSend(text, user, ctx) {
+export async function convertAndSend(text, user, ctx) {
     const voiceId = user.selectedVoice || VOICE_ID;
     const rawAudio = await textToSpeech(text, voiceId);
     if (rawAudio.error) return ctx.reply(rawAudio.error);
