@@ -495,14 +495,55 @@ export async function POST(request) {
 }
 
 
-export async function generateVoiceForAPI(text, voiceId) {
+export async function textToSpeechWithLogging(text, voiceId) {
+    const finalVoiceId = voiceId || VOICE_ID;
+    const url = `https://api.elevenlabs.io/v1/text-to-speech/${finalVoiceId}/stream`;
+
     try {
-        console.log('[generateVoiceForAPI] Starting voice generation...', {
-            textLength: text?.length,
-            voiceId,
-            hasApiKey: !!ELEVENLABS_API_KEY
+        const response = await axios({
+            method: 'POST',
+            url,
+            data: {
+                text,
+                model_id: 'eleven_v3',
+                voice_settings: {
+                    stability: 0.5,
+                    similarity_boost: 0.9,
+                    style: 0.0,
+                    use_speaker_boost: true,
+                },
+            },
+            headers: {
+                'Accept': 'audio/mpeg',
+                'xi-api-key': ELEVENLABS_API_KEY,
+                'Content-Type': 'application/json'
+            },
+            responseType: 'arraybuffer',
+            timeout: 45000
         });
 
+        return response.data;
+
+    } catch (error) {
+        if (error.response) {
+            const status = error.response.status;
+            const data = error.response.data ? Buffer.from(error.response.data).toString('utf-8').slice(0, 500) : 'no body';
+
+            if (status === 401) return { error: 'Неверный API-ключ ElevenLabs', code: 'INVALID_API_KEY' };
+            if (status === 403) return { error: 'Нет доступа к этому голосу (missing_permissions)', code: 'NO_VOICE_ACCESS' };
+            if (status === 404) return { error: 'Voice ID не найден. Проверьте правильность Voice ID', code: 'VOICE_NOT_FOUND' };
+            if (status === 429) return { error: 'Лимит ElevenLabs превышен', code: 'RATE_LIMIT' };
+            if (status === 422) return { error: 'Текст слишком длинный или содержит запрещённые символы', code: 'INVALID_TEXT' };
+
+            return { error: `Ошибка ElevenLabs (${status}): ${data}`, code: 'ELEVENLABS_ERROR' };
+        } else {
+            return { error: 'Не смог связаться с ElevenLabs: ' + error.message, code: 'NETWORK_ERROR' };
+        }
+    }
+}
+
+export async function generateVoiceForAPI(text, voiceId) {
+    try {
         if (!ELEVENLABS_API_KEY) {
             return {
                 error: 'ELEVENLABS_API_KEY не настроен в переменных окружения',
@@ -524,23 +565,17 @@ export async function generateVoiceForAPI(text, voiceId) {
             };
         }
 
-        const rawAudio = await textToSpeech(text, voiceId);
+        const rawAudio = await textToSpeechWithLogging(text, voiceId);
 
         if (rawAudio.error) {
-            console.error('[generateVoiceForAPI] textToSpeech returned error:', rawAudio.error);
             return rawAudio;
         }
 
-        console.log('[generateVoiceForAPI] Raw audio generated, size:', rawAudio.length);
-
         const oggBuffer = await convertToTelegramVoice(rawAudio);
-
-        console.log('[generateVoiceForAPI] OGG conversion complete, size:', oggBuffer.length);
 
         return { success: true, audioBuffer: oggBuffer };
 
     } catch (error) {
-        console.error('[generateVoiceForAPI] Unexpected error:', error);
         return {
             error: 'Ошибка генерации голоса: ' + error.message,
             code: 'GENERATION_ERROR',
