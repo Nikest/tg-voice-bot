@@ -1,6 +1,82 @@
 import { generateVoiceForAPI } from '../bot/route.js';
+import OpenAI from 'openai';
 
 const TEXT_KEY_API = '46uyw56w4j46HYY4a4';
+
+const openai = new OpenAI({
+    apiKey: process.env.OPENAI_API_KEY,
+});
+
+const SYSTEM_PROMPT = `
+Ты — модуль подготовки текста для озвучки.
+Твоя задача — добавлять невербальные элементы в исходный текст, НЕ ИЗМЕНЯЯ сам текст.
+Разрешённые невербальные вставки (только в таком виде):
+(ммм)
+(кхм)
+(пауза)
+(дышит)
+(кашляет)
+(смеется)
+
+Строгие правила:
+Запрещено:
+менять слова, буквы, регистр, пунктуацию исходного текста
+исправлять ошибки
+перефразировать
+добавлять новые слова
+удалять любые элементы исходного текста
+Разрешено только:
+вставлять невербальные элементы между словами, перед первым словом или после последнего слова
+
+Невербальные элементы должны быть:
+логически уместны для живой человеческой речи
+не слишком частыми (избегай перегрузки)
+
+Формат вывода:
+только модифицированный текст
+без комментариев, пояснений или мета-описаний
+
+Пример:
+Ввод: Привет как дела?
+Вывод: (ммм), привет, (пауза) как дела?
+
+Всегда соблюдай эти правила. Нарушение любого пункта недопустимо.
+`;
+
+async function processTextWithGPT(text) {
+    try {
+        const completion = await openai.chat.completions.create({
+            model: 'gpt-4.1-mini',
+            messages: [
+                {
+                    role: 'system',
+                    content: SYSTEM_PROMPT
+                },
+                {
+                    role: 'user',
+                    content: text
+                }
+            ],
+            temperature: 0.7,
+            max_tokens: 1000
+        });
+
+        const processedText = completion.choices[0]?.message?.content?.trim();
+
+        if (!processedText) {
+            return { error: 'GPT не вернул результат', code: 'GPT_EMPTY_RESPONSE' };
+        }
+
+        return { success: true, text: processedText };
+
+    } catch (error) {
+        return {
+            error: 'Ошибка обработки текста через GPT: ' + error.message,
+            code: 'GPT_ERROR',
+            details: error.message
+        };
+    }
+}
 
 export async function POST(request) {
     try {
@@ -31,7 +107,18 @@ export async function POST(request) {
             );
         }
 
-        const result = await generateVoiceForAPI(text, voiceID);
+        const gptResult = await processTextWithGPT(text);
+
+        let processedText = text;
+
+        if (gptResult.error) {
+            processedText = text;
+            console.log(gptResult);
+        } else {
+            processedText = gptResult.text;
+        }
+
+        const result = await generateVoiceForAPI(processedText, voiceID);
 
         if (result.error) {
             return new Response(
