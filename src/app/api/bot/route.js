@@ -439,6 +439,19 @@ bot.on('text', async (ctx) => {
     if (!text) return;
     if (text.startsWith('/')) return;
 
+    // Handle video test command
+    if (text === 'video_test_vid_01') {
+        console.log("send video");
+        const videoPath = path.join(process.cwd(), 'public', 'videos', 'test_vid_01.mp4');
+
+        if (!fs.existsSync(videoPath)) {
+            return ctx.reply('Видео файл не найден');
+        }
+
+        await ctx.sendChatAction('upload_video_note');
+        return ctx.sendVideoNote({ source: fs.createReadStream(videoPath) });
+    }
+
     const telegramUserId = ctx.from.id;
     const user = await findOrCreateUser(telegramUserId);
 
