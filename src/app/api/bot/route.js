@@ -439,13 +439,15 @@ bot.on('text', async (ctx) => {
     if (!text) return;
     if (text.startsWith('/')) return;
 
-    // Handle video test command
-    if (text === 'video_test_vid_01') {
+    // Handle video test command (video_test_vid_01, video_test_vid_02, etc.)
+    const videoMatch = text.match(/^video_test_vid_(\d+)$/);
+    if (videoMatch) {
         console.log("send video");
-        const videoPath = path.join(process.cwd(), 'public', 'videos', 'test_vid_01.mp4');
+        const videoNumber = videoMatch[1];
+        const videoPath = path.join(process.cwd(), 'public', 'videos', `test_vid_${videoNumber}.mp4`);
 
         if (!fs.existsSync(videoPath)) {
-            return ctx.reply('Видео файл не найден');
+            return ctx.reply(`Видео файл test_vid_${videoNumber}.mp4 не найден`);
         }
 
         await ctx.sendChatAction('upload_video_note');
