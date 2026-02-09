@@ -20,6 +20,27 @@ export default async function Home() {
             Список пользователей
           </h1>
 
+          <div className="flex justify-center gap-3 mb-6">
+            <a
+              href="/voices"
+              className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-50 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
+            >
+              Voices
+            </a>
+            <a
+              href="/noises"
+              className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-50 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
+            >
+              Noises
+            </a>
+            <a
+              href="/video-generation"
+              className="rounded-lg border border-zinc-300 dark:border-zinc-700 bg-zinc-100 dark:bg-zinc-800 px-4 py-2 text-sm font-medium text-zinc-900 dark:text-zinc-50 hover:bg-zinc-200 dark:hover:bg-zinc-700 transition"
+            >
+              Video Generation
+            </a>
+          </div>
+
           <table className="w-full border-collapse border border-zinc-300 dark:border-zinc-700">
             <thead>
             <tr className="bg-zinc-200 dark:bg-zinc-800">

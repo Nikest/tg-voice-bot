@@ -19,6 +19,7 @@ services:
       - PORT=3000
     volumes:
       - ../voices:/app/public/voices
+      - ../videos:/app/public/videos
     deploy:
       resources:
         limits:
