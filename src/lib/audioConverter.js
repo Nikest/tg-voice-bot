@@ -212,8 +212,8 @@ export async function convertToOggRaw(inputBuffer) {
             .input(inputStream)
             .inputFormat('mp3')
             .audioFilters([
-                'equalizer=f=8000:width_type=o:width=1:g=-2',
-                'equalizer=f=16000:width_type=o:width=1:g=-8'
+                'equalizer=f=8000:width_type=o:width=1:g=-8',
+                'equalizer=f=16000:width_type=o:width=1:g=-12'
             ])
             .audioCodec('libopus')
             .format('ogg')
