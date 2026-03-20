@@ -6,7 +6,7 @@ import path from 'path';
 import dbConnect from '@/lib/mongoose';
 import VoiceSettings from '@/models/VoiceSettings';
 import NoiseSettings from "@/models/NoiseSettings";
-import { convertToTelegramVoice, convertToMp3Audio } from '@/lib/audioConverter';
+import { convertToTelegramVoice, convertToMp3Audio, convertToOggRaw } from '@/lib/audioConverter';
 import { findUser, createUser, updateVoice, updateNoiseTag } from '@/lib/userService';
 import { enhanceTextWithGPT } from '@/lib/gptService';
 
@@ -174,20 +174,27 @@ export async function speechToText(audioBuffer) {
 
 export async function convertAndSend(text, user, ctx) {
     const voiceId = user.selectedVoice || VOICE_ID;
+    const skipProcessing = voiceId === 'AdhSTFSWh7F4vOMzsFva';
     const rawAudio = await textToSpeech(text, voiceId);
     if (rawAudio.error) return ctx.reply(rawAudio.error);
 
     try {
-        const noiseData = await getValidRandomNoisePath(user.selectedNoiseTag);
-        let noisePath = null;
-        let noiseVolume = '1.35';
+        let perfectVoiceBuffer;
 
-        if (noiseData) {
-            noisePath = noiseData.path;
-            noiseVolume = noiseData.volume || '1.35';
+        if (skipProcessing) {
+            perfectVoiceBuffer = await convertToOggRaw(rawAudio);
+        } else {
+            const noiseData = await getValidRandomNoisePath(user.selectedNoiseTag);
+            let noisePath = null;
+            let noiseVolume = '1.35';
+
+            if (noiseData) {
+                noisePath = noiseData.path;
+                noiseVolume = noiseData.volume || '1.35';
+            }
+
+            perfectVoiceBuffer = await convertToTelegramVoice(rawAudio, noisePath, noiseVolume);
         }
-
-        const perfectVoiceBuffer = await convertToTelegramVoice(rawAudio, noisePath, noiseVolume);
 
         try {
             await ctx.sendVoice({
@@ -198,14 +205,29 @@ export async function convertAndSend(text, user, ctx) {
             const errorMessage = voiceErr.description || voiceErr.message || String(voiceErr);
 
             if (errorMessage.includes('VOICE_MESSAGES_FORBIDDEN')) {
-                // Telegram блокирует OGG при запрете на голосовые, конвертируем в MP3
-                const mp3Buffer = await convertToMp3Audio(rawAudio, noisePath, noiseVolume);
-                await ctx.sendAudio({
-                    source: mp3Buffer,
-                    filename: 'audio.mp3'
-                }, {
-                    caption: '🔊 Аудио-файл (у вас отключены голосовые сообщения)'
-                });
+                if (skipProcessing) {
+                    await ctx.sendAudio({
+                        source: rawAudio,
+                        filename: 'audio.mp3'
+                    }, {
+                        caption: '🔊 Аудио-файл (у вас отключены голосовые сообщения)'
+                    });
+                } else {
+                    const noiseData = await getValidRandomNoisePath(user.selectedNoiseTag);
+                    let noisePath = null;
+                    let noiseVolume = '1.35';
+                    if (noiseData) {
+                        noisePath = noiseData.path;
+                        noiseVolume = noiseData.volume || '1.35';
+                    }
+                    const mp3Buffer = await convertToMp3Audio(rawAudio, noisePath, noiseVolume);
+                    await ctx.sendAudio({
+                        source: mp3Buffer,
+                        filename: 'audio.mp3'
+                    }, {
+                        caption: '🔊 Аудио-файл (у вас отключены голосовые сообщения)'
+                    });
+                }
             } else {
                 throw voiceErr;
             }
@@ -358,6 +380,12 @@ bot.command('changevoice', async (ctx) => {
     const requestedName = args;
 
     try {
+        if (requestedName.toLowerCase() === 'вера-улица') {
+            await findOrCreateUser(telegramUserId);
+            await updateVoice(String(telegramUserId), 'AdhSTFSWh7F4vOMzsFva');
+            return ctx.reply('Голос изменён на "вера-улица".');
+        }
+
         const voice = await findVoiceByName(requestedName);
 
         if (!voice) {

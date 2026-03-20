@@ -189,3 +189,32 @@ export async function convertToTelegramVoice(inputBuffer, noisePath = null, nois
             .pipe(outputStream, { end: true });
     });
 }
+
+export async function convertToOggRaw(inputBuffer) {
+    return new Promise((resolve, reject) => {
+        const outputStream = new PassThrough();
+        const inputStream = new PassThrough();
+
+        inputStream.end(inputBuffer);
+
+        const chunks = [];
+
+        outputStream.on('data', (chunk) => chunks.push(chunk));
+        outputStream.on('end', () => {
+            const resultBuffer = Buffer.concat(chunks);
+            if (resultBuffer.length === 0) {
+                return reject(new Error('FFmpeg conversion resulted in empty buffer'));
+            }
+            resolve(resultBuffer);
+        });
+
+        ffmpeg()
+            .input(inputStream)
+            .inputFormat('mp3')
+            .audioCodec('libopus')
+            .format('ogg')
+            .outputOptions(['-ac 1'])
+            .on('error', (err) => reject(err))
+            .pipe(outputStream, { end: true });
+    });
+}
