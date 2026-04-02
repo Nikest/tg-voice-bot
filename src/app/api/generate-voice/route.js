@@ -110,7 +110,7 @@ export async function POST(request) {
         let inputText = text;
 
         const modeMap = {
-            sad: '(грустно)',
+            sad: '[sad] [whispers]',
             serious: '(серьёзно)',
         };
 
