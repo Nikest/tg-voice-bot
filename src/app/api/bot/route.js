@@ -538,7 +538,7 @@ export async function POST(request) {
 }
 
 
-export async function textToSpeechWithLogging(text, voiceId) {
+export async function textToSpeechWithLogging(text, voiceId, options = {}) {
     const finalVoiceId = voiceId || VOICE_ID;
     const url = `https://api.elevenlabs.io/v1/text-to-speech/${finalVoiceId}/stream`;
 
@@ -550,7 +550,7 @@ export async function textToSpeechWithLogging(text, voiceId) {
                 text,
                 model_id: 'eleven_v3',
                 voice_settings: {
-                    stability: 0.5,
+                    stability: options.mode ? 1.0 : 0.5,
                     similarity_boost: 0.9,
                     style: 0.0,
                     use_speaker_boost: true,
@@ -585,7 +585,7 @@ export async function textToSpeechWithLogging(text, voiceId) {
     }
 }
 
-export async function generateVoiceForAPI(text, voiceId) {
+export async function generateVoiceForAPI(text, voiceId, options = {}) {
     try {
         if (!ELEVENLABS_API_KEY) {
             return {
@@ -608,7 +608,7 @@ export async function generateVoiceForAPI(text, voiceId) {
             };
         }
 
-        const rawAudio = await textToSpeechWithLogging(text, voiceId);
+        const rawAudio = await textToSpeechWithLogging(text, voiceId, options);
 
         if (rawAudio.error) {
             return rawAudio;

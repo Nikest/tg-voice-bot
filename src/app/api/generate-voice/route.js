@@ -132,7 +132,7 @@ export async function POST(request) {
             processedText = gptResult.text;
         }
 
-        const result = await generateVoiceForAPI(processedText, voiceID);
+        const result = await generateVoiceForAPI(processedText, voiceID, { mode });
 
         if (result.error) {
             return new Response(
