@@ -614,7 +614,9 @@ export async function generateVoiceForAPI(text, voiceId) {
             return rawAudio;
         }
 
-        const oggBuffer = await convertToTelegramVoice(rawAudio);
+        const oggBuffer = voiceId === 'AdhSTFSWh7F4vOMzsFva'
+            ? await convertToOggRaw(rawAudio)
+            : await convertToTelegramVoice(rawAudio);
 
         return { success: true, audioBuffer: oggBuffer };
 

@@ -81,7 +81,7 @@ async function processTextWithGPT(text) {
 export async function POST(request) {
     try {
         const body = await request.json();
-        const { apiKey, text, voiceID } = body;
+        const { apiKey, text, voiceID, mode } = body;
 
         if (!apiKey || !text || !voiceID) {
             return new Response(
@@ -107,12 +107,26 @@ export async function POST(request) {
             );
         }
 
-        const gptResult = await processTextWithGPT(text);
+        let inputText = text;
 
-        let processedText = text;
+        const modeMap = {
+            sad: '(грустно)',
+            serious: '(серьёзно)',
+        };
+
+        if (mode && modeMap[mode]) {
+            const tag = modeMap[mode];
+            inputText = inputText
+                .replace(/([.,])\s*/g, `$1 ${tag} `)
+                .replace(/^/, `${tag} `);
+        }
+
+        const gptResult = await processTextWithGPT(inputText);
+
+        let processedText = inputText;
 
         if (gptResult.error) {
-            processedText = text;
+            processedText = inputText;
             console.log(gptResult);
         } else {
             processedText = gptResult.text;
