@@ -554,6 +554,7 @@ export async function textToSpeechWithLogging(text, voiceId, options = {}) {
                     similarity_boost: 0.9,
                     style: 0.0,
                     use_speaker_boost: true,
+                    speed: options.mode ? 1.15 : 1.0,
                 },
             },
             headers: {
