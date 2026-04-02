@@ -550,7 +550,7 @@ export async function textToSpeechWithLogging(text, voiceId, options = {}) {
                 text,
                 model_id: 'eleven_v3',
                 voice_settings: {
-                    stability: options.mode ? 1.0 : 0.5,
+                    stability: options.mode ? 0.0 : 0.5,
                     similarity_boost: 0.9,
                     style: 0.0,
                     use_speaker_boost: true,
